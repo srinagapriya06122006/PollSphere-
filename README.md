@@ -1,6 +1,6 @@
 # ⚡ Live Polling Application
 
-> A high-performance, real-time polling and voting platform engineered with **Go (Gin)**, **MongoDB**, **Redis (Cache & Pub/Sub)**, **WebSockets**, and **React (Vite + Tailwind CSS)**. Built following clean architecture, distributed systems patterns, and production-grade security practices.
+> A high-performance, enterprise-grade, real-time live polling and voting application built with **Go (Gin)**, **MongoDB**, **Redis (Cache-Aside & Pub/Sub)**, **WebSockets**, and **React (Vite + Tailwind CSS)**. Designed with clean layered architecture, distributed real-time synchronization, and production-grade container orchestration.
 
 ---
 
@@ -8,58 +8,65 @@
 1. [System Architecture](#-system-architecture)
 2. [Key Features](#-key-features)
 3. [Technology Stack](#-technology-stack)
-4. [Project Structure](#-project-structure)
-5. [Getting Started](#-getting-started)
-   - [Prerequisites](#prerequisites)
+4. [Database Design & Indexing](#-database-design--indexing)
+5. [Docker Compose & Microservices](#-docker-compose--microservices)
+6. [Project Structure](#-project-structure)
+7. [Getting Started](#-getting-started)
    - [Method 1: Running with Docker Compose (Recommended)](#method-1-running-with-docker-compose-recommended)
    - [Method 2: Running Locally from Source](#method-2-running-locally-from-source)
-6. [API & WebSocket Documentation](#-api--websocket-documentation)
-7. [Environment Variables](#-environment-variables)
-8. [Automated Testing](#-automated-testing)
-9. [System Design & Interview Q&A](#-system-design--interview-qa)
+8. [API & WebSocket Documentation](#-api--websocket-documentation)
+   - [Authentication Endpoints](#authentication-endpoints)
+   - [Poll Management Endpoints](#poll-management-endpoints)
+   - [Voting Endpoints](#voting-endpoints)
+   - [WebSocket Real-Time Feed](#websocket-real-time-feed)
+9. [Environment Configuration](#-environment-configuration)
+10. [Automated Testing Suite](#-automated-testing-suite)
+11. [System Design & Interview Q&A](#-system-design--interview-qa)
 
 ---
 
 ## 🏛 System Architecture
 
-The application is structured into decoupled frontend and backend services communicating over REST and WebSockets, backed by MongoDB for persistence and Redis for sub-millisecond caching and cross-instance Pub/Sub message distribution.
+The application is structured into decoupled frontend and backend services communicating over REST APIs and WebSockets, backed by MongoDB for persistence and Redis for sub-millisecond caching and cross-instance Pub/Sub message distribution.
 
 ```mermaid
 flowchart TD
     subgraph Clients["Frontend Clients (Browser / React SPA)"]
-        UserA["User A (Voter)"]
-        UserB["User B (Viewer)"]
+        UserA["User A (Voter / Creator)"]
+        UserB["User B (Live Viewer)"]
     end
 
-    subgraph ReverseProxy["Nginx / Ingress"]
-        Nginx["Nginx Web Server (:3000)"]
+    subgraph ReverseProxy["Nginx Web Server (:3000)"]
+        Nginx["Nginx SPA Router & Asset Cache"]
     end
 
-    subgraph BackendCluster["Backend API & WebSocket Server (Go / Gin :8080)"]
+    subgraph BackendCluster["Backend API & WebSocket Engine (Go / Gin :8080)"]
         Router["Gin HTTP Router"]
-        AuthMiddleware["JWT Auth Middleware"]
-        PollHandler["Poll & Vote Handlers"]
+        CORSMiddleware["CORS Middleware"]
+        AuthMiddleware["JWT Auth Middleware (HS256)"]
+        PollHandler["Poll & Vote Controllers"]
         WSHub["WebSocket Hub (Room Manager)"]
         VoteService["Vote & Aggregation Service"]
     end
 
     subgraph DataTier["Data & Cache Layer"]
-        MongoDB[("MongoDB 8.0\n- Users & Polls\n- Unique Compound Index\n- Aggregation Pipeline")]
+        MongoDB[("MongoDB 8.0\n- Users, Polls, Votes\n- Unique Compound Index\n- Aggregation Pipeline")]
         Redis[("Redis 7.0\n- 5-Min TTL Cache-Aside\n- Pub/Sub Channel: poll:updates:*")]
     end
 
-    UserA -->|HTTP POST /api/polls/:id/vote| Router
-    UserB -->|WebSocket ws://api/ws/polls/:id| WSHub
     Clients --> Nginx
-
+    UserA -->|HTTP POST /api/polls/:id/vote| CORSMiddleware
+    CORSMiddleware --> Router
     Router --> AuthMiddleware
     AuthMiddleware --> PollHandler
     PollHandler --> VoteService
 
-    VoteService -->|1. Check Duplicate & Insert| MongoDB
-    VoteService -->|2. Invalidate Cache| Redis
-    VoteService -->|3. Publish Update| Redis
+    VoteService -->|1. Atomic Insert & Compound Index Check| MongoDB
+    VoteService -->|2. Invalidate Cache DEL poll:results:id| Redis
+    VoteService -->|3. Publish Result to Redis Channel| Redis
     Redis -.->|Subscribe to Updates| WSHub
+
+    UserB -->|WebSocket Upgrade ws://api/ws/polls/:id| WSHub
     WSHub -.->|Broadcast JSON Results| UserB
     WSHub -.->|Broadcast JSON Results| UserA
 ```
@@ -68,10 +75,10 @@ flowchart TD
 
 ## ✨ Key Features
 
-- **🔐 Robust Authentication & Authorization**:
-  - Secure bcrypt password hashing ($2a$10$).
-  - Stateless JWT authentication (HS256) with custom claims and expiration validation.
-  - Strict resource ownership verification (only poll creators can update or delete their polls).
+- **🔐 Robust Authentication & Security**:
+  - Secure bcrypt password hashing ($2a$10$ work factor).
+  - Stateless JWT authentication (HS256) with custom claims (`user_id`, `email`) and automatic expiration validation.
+  - Strict resource ownership verification (only poll creators can update status or delete polls).
 
 - **⚡ Real-Time Live Updates via WebSockets & Redis Pub/Sub**:
   - Instant live vote count and percentage updates pushed to all connected viewers without polling.
@@ -127,6 +134,69 @@ flowchart TD
 
 ---
 
+## 🗄 Database Design & Indexing
+
+### Collections & Indexes
+
+```mermaid
+erDiagram
+    USERS ||--o{ POLLS : creates
+    USERS ||--o{ VOTES : casts
+    POLLS ||--o{ VOTES : receives
+
+    USERS {
+        ObjectID _id PK
+        string name
+        string email UK "Index: unique_user_email"
+        string password "bcrypt hash"
+        date created_at
+        date updated_at
+    }
+
+    POLLS {
+        ObjectID _id PK
+        string question
+        array options "Array of { id, text }"
+        ObjectID creator_id FK "Index: creator_id"
+        string creator_name
+        string status "active | closed (Index: status)"
+        date expires_at
+        date created_at "Index: created_at"
+        date updated_at
+    }
+
+    VOTES {
+        ObjectID _id PK
+        ObjectID poll_id FK "Compound UK: { poll_id: 1, user_id: 1 }"
+        string option_id
+        ObjectID user_id FK "Compound UK: { poll_id: 1, user_id: 1 }"
+        date created_at
+    }
+```
+
+### MongoDB Aggregation Pipeline for Results:
+```javascript
+db.votes.aggregate([
+  { $match: { poll_id: ObjectId("...") } },
+  { $group: { _id: "$option_id", count: { $sum: 1 } } }
+])
+```
+
+---
+
+## 🐳 Docker Compose & Microservices
+
+The root [`docker-compose.yml`](docker-compose.yml) orchestrates 4 interconnected microservices on an isolated bridge network `live_poll_network`:
+
+| Service | Container Name | Image / Build | Port Mapping | Healthcheck |
+| :--- | :--- | :--- | :--- | :--- |
+| **mongodb** | `guvi-mongodb` | `mongo:8` | `27017:27017` | `mongosh --eval "db.adminCommand('ping')"` |
+| **redis** | `guvi-redis` | `redis:7-alpine` | `6379:6379` | `redis-cli ping` |
+| **backend** | `guvi-backend` | `./backend/Dockerfile` | `8080:8080` | Depends on Mongo & Redis healthy |
+| **frontend** | `guvi-frontend` | `./frontend/Dockerfile` | `3000:80` | Depends on Backend started |
+
+---
+
 ## 📁 Project Structure
 
 ```
@@ -178,15 +248,9 @@ flowchart TD
 
 ## 🚀 Getting Started
 
-### Prerequisites
-- [Docker Desktop](https://www.docker.com/products/docker-desktop/) (Docker Compose v2+)
-- **Optional for local manual run**: [Go 1.22+](https://go.dev/dl/), [Node.js 20+](https://nodejs.org/), [MongoDB](https://www.mongodb.com/), and [Redis](https://redis.io/).
-
----
-
 ### Method 1: Running with Docker Compose (Recommended)
 
-Start all 4 services (Go Backend, React Frontend, MongoDB, and Redis) with a single command:
+Start all 4 services with one single command:
 
 ```bash
 # Clone repository
@@ -246,7 +310,7 @@ npm run dev
 | `POST` | `/api/auth/login` | Login and obtain JWT token | No |
 | `GET` | `/api/auth/me` | Fetch authenticated user's profile | **Yes (Bearer JWT)** |
 
-### Poll Endpoints
+### Poll Management Endpoints
 | Method | Endpoint | Description | Auth Required |
 | :--- | :--- | :--- | :--- |
 | `GET` | `/api/polls` | List paginated polls (`?page=1&limit=10&status=active`) | No |
@@ -261,12 +325,12 @@ npm run dev
 | `POST` | `/api/polls/:id/vote` | Cast a single vote for an option | **Yes (Bearer JWT)** |
 | `GET` | `/api/polls/:id/results` | Get aggregated vote results & percentages | No (Optional JWT) |
 
-### Real-Time WebSocket Endpoint
+### WebSocket Real-Time Feed
 | Protocol | Endpoint | Description |
 | :--- | :--- | :--- |
 | `WS` | `/api/ws/polls/:id` | Real-time WebSocket connection subscribing to poll updates |
 
-#### Real-Time Message Format (`POLL_UPDATE`):
+#### Real-Time Update Payload (`POLL_UPDATE`):
 ```json
 {
   "type": "POLL_UPDATE",
@@ -285,16 +349,41 @@ npm run dev
 
 ---
 
-## 🧪 Automated Testing
+## ⚙️ Environment Configuration
 
-The backend includes comprehensive unit and integration test suites covering JWT security, authentication middleware, user models, and API handler error flows:
+### Backend (`backend/.env`)
+| Variable | Default Value | Description |
+| :--- | :--- | :--- |
+| `PORT` | `8080` | HTTP Server port |
+| `APP_ENV` | `development` | Environment mode (`development` / `production`) |
+| `GIN_MODE` | `debug` | Gin router mode (`debug` / `release` / `test`) |
+| `MONGO_URI` | `mongodb://localhost:27017` | MongoDB connection URI |
+| `MONGO_DB_NAME` | `polling_app` | MongoDB target database name |
+| `JWT_SECRET` | `super_secret_jwt_key...` | HMAC-SHA256 signing secret |
+| `JWT_EXPIRY_HOURS` | `24` | Token lifetime duration in hours |
+| `REDIS_ADDR` | `localhost:6379` | Redis host & port |
+| `REDIS_PASSWORD` | `""` | Optional Redis auth password |
+| `REDIS_DB` | `0` | Redis logical DB index |
+| `REDIS_ENABLED` | `true` | Toggle Redis caching & Pub/Sub |
+
+### Frontend (`frontend/.env`)
+| Variable | Default Value | Description |
+| :--- | :--- | :--- |
+| `VITE_API_BASE_URL` | `http://localhost:8080/api` | Base URL for REST API endpoints |
+| `VITE_WS_BASE_URL` | `ws://localhost:8080/api/ws` | Base URL for WebSocket connections |
+
+---
+
+## 🧪 Automated Testing Suite
+
+Run the full automated testing suite across services, middlewares, and HTTP handlers:
 
 ```bash
 cd backend
 go test -v ./...
 ```
 
-### Test Suite Summary:
+### Verified Test Cases:
 - ✅ `TestJWTService_GenerateAndValidateToken`: Validates token creation and claim parsing.
 - ✅ `TestJWTService_InvalidTokenSignature`: Tests signature tampering protection.
 - ✅ `TestJWTService_ExpiredToken`: Asserts automatic token expiration handling.
