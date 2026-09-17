@@ -6,22 +6,24 @@
 
 ## 📑 Table of Contents
 1. [System Architecture](#-system-architecture)
-2. [Key Features](#-key-features)
-3. [Technology Stack](#-technology-stack)
-4. [Database Design & Indexing](#-database-design--indexing)
-5. [Docker Compose & Microservices](#-docker-compose--microservices)
-6. [Project Structure](#-project-structure)
-7. [Getting Started](#-getting-started)
+2. [End-to-End Real-Time User Flow](#-end-to-end-real-time-user-flow)
+3. [Key Features](#-key-features)
+4. [Technology Stack](#-technology-stack)
+5. [Database Design & Indexing](#-database-design--indexing)
+6. [Docker Compose & Microservices](#-docker-compose--microservices)
+7. [Project Structure](#-project-structure)
+8. [Getting Started](#-getting-started)
    - [Method 1: Running with Docker Compose (Recommended)](#method-1-running-with-docker-compose-recommended)
    - [Method 2: Running Locally from Source](#method-2-running-locally-from-source)
-8. [API & WebSocket Documentation](#-api--websocket-documentation)
-   - [Authentication Endpoints](#authentication-endpoints)
-   - [Poll Management Endpoints](#poll-management-endpoints)
-   - [Voting Endpoints](#voting-endpoints)
-   - [WebSocket Real-Time Feed](#websocket-real-time-feed)
-9. [Environment Configuration](#-environment-configuration)
-10. [Automated Testing Suite](#-automated-testing-suite)
-11. [System Design & Interview Q&A](#-system-design--interview-qa)
+9. [Shareable Links & Multi-Tab Testing Guide](#-shareable-links--multi-tab-testing-guide)
+10. [API & WebSocket Documentation](#-api--websocket-documentation)
+    - [Authentication Endpoints](#authentication-endpoints)
+    - [Poll Management Endpoints](#poll-management-endpoints)
+    - [Voting Endpoints](#voting-endpoints)
+    - [WebSocket Real-Time Feed](#websocket-real-time-feed)
+11. [Environment Configuration](#-environment-configuration)
+12. [Automated Testing Suite](#-automated-testing-suite)
+13. [System Design & Interview Q&A](#-system-design--interview-qa)
 
 ---
 
@@ -32,8 +34,8 @@ The application is structured into decoupled frontend and backend services commu
 ```mermaid
 flowchart TD
     subgraph Clients["Frontend Clients (Browser / React SPA)"]
-        UserA["User A (Voter / Creator)"]
-        UserB["User B (Live Viewer)"]
+        UserA["User A (Poll Creator / Viewer)"]
+        UserB["User B (Friend / Live Voter)"]
     end
 
     subgraph ReverseProxy["Nginx Web Server (:3000)"]
@@ -55,20 +57,50 @@ flowchart TD
     end
 
     Clients --> Nginx
-    UserA -->|HTTP POST /api/polls/:id/vote| CORSMiddleware
+    UserA -->|1. HTTP POST /api/polls| CORSMiddleware
+    UserB -->|4. HTTP POST /api/polls/:id/vote| CORSMiddleware
     CORSMiddleware --> Router
     Router --> AuthMiddleware
     AuthMiddleware --> PollHandler
     PollHandler --> VoteService
 
-    VoteService -->|1. Atomic Insert & Compound Index Check| MongoDB
-    VoteService -->|2. Invalidate Cache DEL poll:results:id| Redis
-    VoteService -->|3. Publish Result to Redis Channel| Redis
+    VoteService -->|Atomic Insert & Compound Index Check| MongoDB
+    VoteService -->|Invalidate Cache DEL poll:results:id| Redis
+    VoteService -->|Publish Result to Redis Channel| Redis
     Redis -.->|Subscribe to Updates| WSHub
 
-    UserB -->|WebSocket Upgrade ws://api/ws/polls/:id| WSHub
-    WSHub -.->|Broadcast JSON Results| UserB
-    WSHub -.->|Broadcast JSON Results| UserA
+    UserA -.->|2. WebSocket ws://api/ws/polls/:id| WSHub
+    UserB -.->|3. WebSocket ws://api/ws/polls/:id| WSHub
+    WSHub -.->|5. Broadcast Real-Time Tally JSON| UserA
+    WSHub -.->|5. Broadcast Real-Time Tally JSON| UserB
+```
+
+---
+
+## 🔄 End-to-End Real-Time User Flow
+
+The platform enables full real-time collaboration between creators and voters:
+
+```
+You create a poll
+      ↓
+Poll saved in MongoDB (Unique ObjectID generated)
+      ↓
+Redirect to /polls/:id
+      ↓
+Click "Share Poll Link" (Copies URL to Clipboard)
+      ↓
+Send link to Friend (e.g. WhatsApp / Slack)
+      ↓
+Friend opens link: /polls/:id
+      ↓
+Friend's browser connects to WebSocket (🟢 Live Badge appears)
+      ↓
+Friend casts vote
+      ↓
+MongoDB writes vote + Redis invalidates cache + Pub/Sub publishes update
+      ↓
+Your screen & friend's screen update instantly without page refresh!
 ```
 
 ---
@@ -85,6 +117,10 @@ flowchart TD
   - Horizontally scalable room manager: background goroutines subscribe to Redis Pub/Sub channels (`poll:updates:<id>`) to propagate updates across multiple backend nodes.
   - Client-side auto-reconnection with exponential backoff and ping/pong keep-alives.
 
+- **🔗 1-Click Shareable Poll Links**:
+  - Dynamic route generation (`/polls/:id`) with one-click clipboard copying.
+  - Live connection status badge (`🟢 Live`) indicating active WebSocket room subscription.
+
 - **🛡️ Concurrency-Safe Single-Vote Guarantee**:
   - Enforced at both the business logic layer and database engine level via MongoDB **unique compound index** on `{ poll_id: 1, user_id: 1 }`.
   - Prevents race conditions and double-voting even during concurrent requests.
@@ -93,11 +129,6 @@ flowchart TD
   - High-throughput MongoDB aggregation pipeline computes vote counts and percentages dynamically.
   - Read-through (cache-aside) caching with a 5-minute TTL in Redis.
   - Instant cache invalidation triggered immediately when a new vote is successfully recorded.
-
-- **🎨 Modern, Responsive React UI**:
-  - Interactive vote options with animated percentage bars.
-  - Dark/Light-inspired sleek modern aesthetic with Tailwind CSS and Lucide icons.
-  - Dedicated pages: Home/Poll Feed, Create Poll, Poll Details with Live Results, User Profile, Login, and Registration.
 
 ---
 
@@ -136,8 +167,6 @@ flowchart TD
 
 ## 🗄 Database Design & Indexing
 
-### Collections & Indexes
-
 ```mermaid
 erDiagram
     USERS ||--o{ POLLS : creates
@@ -172,14 +201,6 @@ erDiagram
         ObjectID user_id FK "Compound UK: { poll_id: 1, user_id: 1 }"
         date created_at
     }
-```
-
-### MongoDB Aggregation Pipeline for Results:
-```javascript
-db.votes.aggregate([
-  { $match: { poll_id: ObjectId("...") } },
-  { $group: { _id: "$option_id", count: { $sum: 1 } } }
-])
 ```
 
 ---
@@ -298,6 +319,23 @@ npm install
 npm run dev
 # Frontend will start on http://localhost:5173
 ```
+
+---
+
+## 🧪 Shareable Links & Multi-Tab Testing Guide
+
+To experience real-time synchronization locally:
+
+1. Open [`http://localhost:5173`](http://localhost:5173) in your normal browser window.
+2. Sign in as **Creator** (`srinath@example.com` / `securePassword123`) and click **Create Poll**.
+3. Create your poll questions & options, then click **Publish Poll**.
+4. On the Poll Details page, click **"Share Poll Link"** to copy the URL to your clipboard.
+5. Open an **Incognito / Private Window** (simulating a friend on another device).
+6. Paste the link. The poll options will load and the **`🟢 Live`** badge will connect.
+7. Sign in as a second user (e.g. `priya@example.com`) and cast a vote.
+8. Look at your first window — the vote count and animated percentage bars will **instantly update in real time**!
+
+> **Note on Localhost vs Production**: `http://localhost:5173` is accessible on your local machine. Deploying the frontend (e.g., Vercel / Netlify) and backend (e.g., AWS ECS / Railway / DigitalOcean) makes the shareable link publicly accessible worldwide!
 
 ---
 
