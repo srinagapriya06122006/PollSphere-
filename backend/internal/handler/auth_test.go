@@ -1,0 +1,188 @@
+package handler_test
+
+import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
+	"testing"
+	"time"
+
+	"guvi-backend/internal/handler"
+	"guvi-backend/internal/model"
+	"guvi-backend/internal/service"
+
+	"github.com/gin-gonic/gin"
+)
+
+// MockAuthService implements service.AuthService for handler unit tests
+type MockAuthService struct {
+	RegisterFunc   func(ctx context.Context, req *model.RegisterRequest) (*model.UserResponse, error)
+	LoginFunc      func(ctx context.Context, req *model.LoginRequest) (*model.AuthResponse, error)
+	GetProfileFunc func(ctx context.Context, userID string) (*model.UserResponse, error)
+}
+
+func (m *MockAuthService) Register(ctx context.Context, req *model.RegisterRequest) (*model.UserResponse, error) {
+	if m.RegisterFunc != nil {
+		return m.RegisterFunc(ctx, req)
+	}
+	return nil, nil
+}
+
+func (m *MockAuthService) Login(ctx context.Context, req *model.LoginRequest) (*model.AuthResponse, error) {
+	if m.LoginFunc != nil {
+		return m.LoginFunc(ctx, req)
+	}
+	return nil, nil
+}
+
+func (m *MockAuthService) GetProfile(ctx context.Context, userID string) (*model.UserResponse, error) {
+	if m.GetProfileFunc != nil {
+		return m.GetProfileFunc(ctx, userID)
+	}
+	return nil, nil
+}
+
+func TestAuthHandler_Register_Success(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	mockSvc := &MockAuthService{
+		RegisterFunc: func(ctx context.Context, req *model.RegisterRequest) (*model.UserResponse, error) {
+			return &model.UserResponse{
+				ID:        "66e85293f0b001a1a1a1a1a1",
+				Name:      req.Name,
+				Email:     req.Email,
+				CreatedAt: time.Now(),
+			}, nil
+		},
+	}
+
+	h := handler.NewAuthHandler(mockSvc)
+	r := gin.New()
+	r.POST("/api/auth/register", h.Register)
+
+	payload := model.RegisterRequest{
+		Name:     "Test User",
+		Email:    "test@example.com",
+		Password: "password123",
+	}
+	body, _ := json.Marshal(payload)
+
+	req, _ := http.NewRequest(http.MethodPost, "/api/auth/register", bytes.NewBuffer(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusCreated {
+		t.Fatalf("expected status 201 Created, got: %d, body: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestAuthHandler_Register_DuplicateEmail(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	mockSvc := &MockAuthService{
+		RegisterFunc: func(ctx context.Context, req *model.RegisterRequest) (*model.UserResponse, error) {
+			return nil, service.ErrEmailAlreadyExists
+		},
+	}
+
+	h := handler.NewAuthHandler(mockSvc)
+	r := gin.New()
+	r.POST("/api/auth/register", h.Register)
+
+	payload := model.RegisterRequest{
+		Name:     "Duplicate User",
+		Email:    "existing@example.com",
+		Password: "password123",
+	}
+	body, _ := json.Marshal(payload)
+
+	req, _ := http.NewRequest(http.MethodPost, "/api/auth/register", bytes.NewBuffer(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusConflict {
+		t.Fatalf("expected status 409 Conflict, got: %d", w.Code)
+	}
+}
+
+func TestAuthHandler_Login_InvalidCredentials(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	mockSvc := &MockAuthService{
+		LoginFunc: func(ctx context.Context, req *model.LoginRequest) (*model.AuthResponse, error) {
+			return nil, service.ErrInvalidCredentials
+		},
+	}
+
+	h := handler.NewAuthHandler(mockSvc)
+	r := gin.New()
+	r.POST("/api/auth/login", h.Login)
+
+	payload := model.LoginRequest{
+		Email:    "user@example.com",
+		Password: "wrongpassword",
+	}
+	body, _ := json.Marshal(payload)
+
+	req, _ := http.NewRequest(http.MethodPost, "/api/auth/login", bytes.NewBuffer(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusUnauthorized {
+		t.Fatalf("expected status 401 Unauthorized, got: %d", w.Code)
+	}
+}
+
+func TestAuthHandler_Login_Success(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	mockSvc := &MockAuthService{
+		LoginFunc: func(ctx context.Context, req *model.LoginRequest) (*model.AuthResponse, error) {
+			return &model.AuthResponse{
+				Token: "jwt-token-xyz",
+				User: &model.UserResponse{
+					ID:    "66e85293f0b001a1a1a1a1a1",
+					Name:  "Logged In User",
+					Email: req.Email,
+				},
+			}, nil
+		},
+	}
+
+	h := handler.NewAuthHandler(mockSvc)
+	r := gin.New()
+	r.POST("/api/auth/login", h.Login)
+
+	payload := model.LoginRequest{
+		Email:    "user@example.com",
+		Password: "password123",
+	}
+	body, _ := json.Marshal(payload)
+
+	req, _ := http.NewRequest(http.MethodPost, "/api/auth/login", bytes.NewBuffer(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected status 200 OK, got: %d", w.Code)
+	}
+}
+
+func TestAuthHandler_Me_Unauthenticated(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	mockSvc := &MockAuthService{}
+
+	h := handler.NewAuthHandler(mockSvc)
+	r := gin.New()
+	r.GET("/api/auth/me", h.Me)
+
+	req, _ := http.NewRequest(http.MethodGet, "/api/auth/me", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusUnauthorized {
+		t.Fatalf("expected status 401 Unauthorized, got: %d", w.Code)
+	}
+}
