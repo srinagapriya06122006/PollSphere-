@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import { Clock, User, CheckCircle, ArrowLeft, BarChart2, ShieldAlert } from 'lucide-react'
+import { Clock, User, CheckCircle, ArrowLeft, BarChart2, ShieldAlert, Share2, Check } from 'lucide-react'
 import pollService from '../services/pollService'
 import voteService from '../services/voteService'
 import { useAuth } from '../context/AuthContext'
@@ -23,6 +23,7 @@ export const PollDetails = () => {
   const [loading, setLoading] = useState(true)
   const [voting, setVoting] = useState(false)
   const [error, setError] = useState(null)
+  const [copied, setCopied] = useState(false)
 
   // Fetch initial poll & results via REST
   const fetchPollData = async () => {
@@ -80,15 +81,38 @@ export const PollDetails = () => {
     }
   }
 
+  const handleCopyShareLink = async () => {
+    try {
+      await navigator.clipboard.writeText(window.location.href)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2500)
+    } catch (err) {
+      console.error('Failed to copy link', err)
+    }
+  }
+
   if (loading) return <LoadingSpinner message="Connecting to live poll..." />
   if (error && !poll) return <ErrorState message={error} onRetry={fetchPollData} />
   if (!poll) return null
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
-      <Link to="/" className="inline-flex items-center gap-1.5 text-xs text-slate-400 hover:text-emerald-400 transition-colors">
-        <ArrowLeft className="w-4 h-4" /> Back to Dashboard
-      </Link>
+      <div className="flex items-center justify-between">
+        <Link to="/" className="inline-flex items-center gap-1.5 text-xs text-slate-400 hover:text-emerald-400 transition-colors">
+          <ArrowLeft className="w-4 h-4" /> Back to Dashboard
+        </Link>
+        <button
+          onClick={handleCopyShareLink}
+          className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all ${
+            copied
+              ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400 shadow-sm shadow-emerald-500/10'
+              : 'bg-slate-900 border-slate-800 text-slate-300 hover:text-slate-100 hover:bg-slate-800'
+          }`}
+        >
+          {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Share2 className="w-3.5 h-3.5 text-slate-400" />}
+          {copied ? 'Link Copied to Clipboard!' : 'Share Poll Link'}
+        </button>
+      </div>
 
       <Card className="p-8 space-y-6">
         {/* Header Badges */}
