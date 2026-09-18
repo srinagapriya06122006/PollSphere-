@@ -23,10 +23,11 @@
 5. [Database Design & MongoDB Indexes](#-database-design--mongodb-indexes)
 6. [API & WebSocket Route Reference](#-api--websocket-route-reference)
 7. [Frontend Routing & Access Control Matrix](#-frontend-routing--access-control-matrix)
-8. [Docker Compose & Microservices (Container Commands)](#-docker-compose--microservices)
+8. [Docker Compose & Microservices (Local Container Commands)](#-docker-compose--microservices)
 9. [Getting Started Locally](#-getting-started-locally)
-10. [Automated Testing Suite](#-automated-testing-suite)
-11. [System Design & Interview Q&A](#-system-design--interview-qa)
+10. [Cloud Deployment Guide (Vercel + Render + MongoDB Atlas)](#-cloud-deployment-guide-vercel--render--mongodb-atlas)
+11. [Automated Testing Suite](#-automated-testing-suite)
+12. [System Design & Interview Q&A](#-system-design--interview-qa)
 
 ---
 
@@ -413,6 +414,55 @@ npm install
 npm run dev
 # Frontend runs on http://localhost:5173
 ```
+
+---
+
+## ☁️ Cloud Deployment Guide (Vercel + Render + MongoDB Atlas)
+
+PulsePoll is architected for zero-downtime, scalable cloud hosting on modern cloud platforms:
+
+### 1. Database: MongoDB Atlas (Free Cloud M0 Tier)
+1. Register at [MongoDB Atlas](https://www.mongodb.com/cloud/atlas/register) and create a free **M0 Cluster** (e.g., `taxpalCluster`).
+2. **Database Access**: Create a database user (e.g., `pollsphere_admin`) with `readWriteAnyDatabase` permissions.
+3. **Network Access**: Add `0.0.0.0/0` (Allow Access from Anywhere) to the IP Access List so Render can communicate with the cluster.
+4. **Connection String**: Under **Connect** $\rightarrow$ **Drivers**, copy the SRV URI:
+   ```text
+   mongodb+srv://<username>:<password>@<cluster>.mongodb.net/polling_app?retryWrites=true&w=majority
+   ```
+
+### 2. Backend: Render.com (Go Web Service / Docker)
+Deploy the Go backend as a containerized Web Service on [Render](https://render.com):
+* **Repository**: Connect your GitHub repository (`PollSphere-`).
+* **Root Directory**: `backend`
+* **Runtime**: `Docker`
+* **Dockerfile Path**: `Dockerfile`
+* **Instance Type**: Free ($0/month)
+* **Environment Variables**:
+  | Key | Recommended Value | Purpose |
+  | :--- | :--- | :--- |
+  | `APP_ENV` | `production` | Enables production telemetry and logging |
+  | `GIN_MODE` | `release` | Disables Gin debugging mode for maximum throughput |
+  | `MONGO_DB_NAME` | `polling_app` | Target MongoDB database |
+  | `MONGO_URI` | `mongodb+srv://...` | Your MongoDB Atlas connection string |
+  | `JWT_SECRET` | *(Random 32+ chars)* | Cryptographic HMAC-SHA256 signing secret |
+  | `JWT_EXPIRY_HOURS` | `24` | Token lifespan |
+  | `REDIS_ENABLED` | `false` | Fallback to MongoDB if no external cloud Redis is configured |
+  | `PORT` | `10000` | Injected dynamically by Render |
+
+### 3. Frontend: Vercel (React 18 SPA)
+Deploy the frontend client on [Vercel](https://vercel.com):
+* **Repository**: Connect your GitHub repository.
+* **Root Directory**: `frontend`
+* **Framework Preset**: `Vite`
+* **Build Command**: `npm run build`
+* **Output Directory**: `dist`
+* **Install Command**: `npm install`
+* **SPA Routing (`vercel.json`)**: Included in repository root and `frontend/` to rewrite all paths (`/(.*)`) to `/index.html` preventing 404 errors on browser page refresh.
+* **Environment Variables**:
+  | Key | Value |
+  | :--- | :--- |
+  | `VITE_API_BASE_URL` | `https://<your-render-backend>.onrender.com/api` |
+  | `VITE_WS_BASE_URL` | `wss://<your-render-backend>.onrender.com/api/ws` |
 
 ---
 
