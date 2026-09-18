@@ -50,9 +50,14 @@ func ConnectRedis(cfg *config.Config) (*RedisClient, error) {
 	}, nil
 }
 
+// IsEnabled returns true if Redis is initialized and ready
+func (r *RedisClient) IsEnabled() bool {
+	return r != nil && r.Client != nil
+}
+
 // Ping checks if Redis is responsive
 func (r *RedisClient) Ping(ctx context.Context) error {
-	if r == nil || r.Client == nil {
+	if !r.IsEnabled() {
 		return fmt.Errorf("redis client is not initialized")
 	}
 	return r.Client.Ping(ctx).Err()
@@ -60,7 +65,7 @@ func (r *RedisClient) Ping(ctx context.Context) error {
 
 // Get retrieves a value by key from Redis
 func (r *RedisClient) Get(ctx context.Context, key string) (string, error) {
-	if r == nil || r.Client == nil {
+	if !r.IsEnabled() {
 		return "", fmt.Errorf("redis not available")
 	}
 	return r.Client.Get(ctx, key).Result()
@@ -68,7 +73,7 @@ func (r *RedisClient) Get(ctx context.Context, key string) (string, error) {
 
 // Set stores a key-value pair with an expiration TTL
 func (r *RedisClient) Set(ctx context.Context, key string, value interface{}, expiration time.Duration) error {
-	if r == nil || r.Client == nil {
+	if !r.IsEnabled() {
 		return fmt.Errorf("redis not available")
 	}
 	return r.Client.Set(ctx, key, value, expiration).Err()
@@ -76,15 +81,31 @@ func (r *RedisClient) Set(ctx context.Context, key string, value interface{}, ex
 
 // Del deletes one or more keys from Redis
 func (r *RedisClient) Del(ctx context.Context, keys ...string) error {
-	if r == nil || r.Client == nil {
+	if !r.IsEnabled() {
 		return fmt.Errorf("redis not available")
 	}
 	return r.Client.Del(ctx, keys...).Err()
 }
 
+// Incr increments a key counter in Redis
+func (r *RedisClient) Incr(ctx context.Context, key string) (int64, error) {
+	if !r.IsEnabled() {
+		return 0, fmt.Errorf("redis not available")
+	}
+	return r.Client.Incr(ctx, key).Result()
+}
+
+// Expire sets a key expiration duration
+func (r *RedisClient) Expire(ctx context.Context, key string, expiration time.Duration) error {
+	if !r.IsEnabled() {
+		return fmt.Errorf("redis not available")
+	}
+	return r.Client.Expire(ctx, key, expiration).Err()
+}
+
 // Disconnect gracefully shuts down the Redis connection pool
 func (r *RedisClient) Disconnect() {
-	if r == nil || r.Client == nil {
+	if !r.IsEnabled() {
 		return
 	}
 

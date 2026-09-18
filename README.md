@@ -1,197 +1,245 @@
-# ⚡ Live Polling Application
+# ⚡ Live Polling Application — Enterprise Real-Time Platform
 
-> A high-performance, enterprise-grade, real-time live polling and voting application built with **Go (Gin)**, **MongoDB**, **Redis (Cache-Aside & Pub/Sub)**, **WebSockets**, and **React (Vite + Tailwind CSS)**. Designed with clean layered architecture, distributed real-time synchronization, and production-grade container orchestration.
+> A high-performance, enterprise-grade, real-time live polling and analytics application built with **Go 1.24 (Gin Clean Architecture)**, **MongoDB 8.0**, **Redis 7.0 (Cache-Aside, Sliding-Window Rate Limiting & Pub/Sub)**, **WebSockets (Gorilla)**, and **React 18 (Vite + Tailwind CSS + Recharts)**.
 
 ---
 
 ## 📑 Table of Contents
-1. [System Architecture](#-system-architecture)
-2. [End-to-End Real-Time User Flow](#-end-to-end-real-time-user-flow)
-3. [Key Features](#-key-features)
+1. [System Architecture & Clean Design](#-system-architecture--clean-design)
+2. [What Has Been Built (Placement-Focused Features)](#-what-has-been-built-placement-focused-features)
+3. [Key Architecture Modules](#-key-architecture-modules)
+   - [1. Real-Time WebSocket & Redis Pub/Sub Synchronization](#1-real-time-websocket--redis-pubsub-synchronization)
+   - [2. Production SaaS Landing Page & Navigation Design](#2-production-saas-landing-page--navigation-design)
+   - [3. Critical Route Protection & Authentication Architecture (`<ProtectedRoute />`)](#3-critical-route-protection--authentication-architecture-protectedroute-)
+   - [4. Analytics & Interactive Visual Dashboard (Recharts)](#4-analytics--interactive-visual-dashboard-recharts)
+   - [5. Persistent Notification Center](#5-persistent-notification-center)
+   - [6. Background Poll Expiry Scheduler](#6-background-poll-expiry-scheduler)
+   - [7. Role-Based Access Control (RBAC) & Audit Logs](#7-role-based-access-control-rbac--audit-logs)
+   - [8. AI Poll Insights Engine (Gemini + Heuristic Fallback)](#8-ai-poll-insights-engine-gemini--heuristic-fallback)
+   - [9. Enterprise Health Monitoring & Telemetry](#9-enterprise-health-monitoring--telemetry)
+   - [10. Poll Cloning & Reusable Poll Templates](#10-poll-cloning--reusable-poll-templates)
+   - [11. Export Reports & Dynamic QR Sharing](#11-export-reports--dynamic-qr-sharing)
 4. [Technology Stack](#-technology-stack)
-5. [Database Design & Indexing](#-database-design--indexing)
-6. [Docker Compose & Microservices](#-docker-compose--microservices)
-7. [Project Structure](#-project-structure)
-8. [Getting Started](#-getting-started)
-   - [Method 1: Running with Docker Compose (Recommended)](#method-1-running-with-docker-compose-recommended)
-   - [Method 2: Running Locally from Source](#method-2-running-locally-from-source)
-9. [Shareable Links & Multi-Tab Testing Guide](#-shareable-links--multi-tab-testing-guide)
-10. [API & WebSocket Documentation](#-api--websocket-documentation)
-    - [Authentication Endpoints](#authentication-endpoints)
-    - [Poll Management Endpoints](#poll-management-endpoints)
-    - [Voting Endpoints](#voting-endpoints)
-    - [WebSocket Real-Time Feed](#websocket-real-time-feed)
-11. [Environment Configuration](#-environment-configuration)
-12. [Automated Testing Suite](#-automated-testing-suite)
-13. [System Design & Interview Q&A](#-system-design--interview-qa)
+5. [Database Design & MongoDB Indexes](#-database-design--mongodb-indexes)
+6. [API & WebSocket Route Reference](#-api--websocket-route-reference)
+7. [Frontend Routing & Access Control Matrix](#-frontend-routing--access-control-matrix)
+8. [Docker Compose & Microservices (Container Commands)](#-docker-compose--microservices)
+9. [Getting Started Locally](#-getting-started-locally)
+10. [Automated Testing Suite](#-automated-testing-suite)
+11. [System Design & Interview Q&A](#-system-design--interview-qa)
 
 ---
 
-## 🏛 System Architecture
+## 🏛 System Architecture & Clean Design
 
-The application is structured into decoupled frontend and backend services communicating over REST APIs and WebSockets, backed by MongoDB for persistence and Redis for sub-millisecond caching and cross-instance Pub/Sub message distribution.
+The application adheres to Go **Clean Architecture** principles, maintaining strict separation of concerns across handlers, services, repositories, models, and domain entities:
 
 ```mermaid
 flowchart TD
-    subgraph Clients["Frontend Clients (Browser / React SPA)"]
-        UserA["User A (Poll Creator / Viewer)"]
-        UserB["User B (Friend / Live Voter)"]
+    subgraph Clients["Frontend Tier (React 18 SPA + Vite)"]
+        Browser["React Client / Lucide / Recharts"]
+        WSClient["WebSocket Live Client"]
+        Guard["ProtectedRoute Auth Guard\n(Zero-Flicker Session Check)"]
     end
 
     subgraph ReverseProxy["Nginx Web Server (:3000)"]
         Nginx["Nginx SPA Router & Asset Cache"]
     end
 
-    subgraph BackendCluster["Backend API & WebSocket Engine (Go / Gin :8080)"]
-        Router["Gin HTTP Router"]
-        CORSMiddleware["CORS Middleware"]
-        AuthMiddleware["JWT Auth Middleware (HS256)"]
-        PollHandler["Poll & Vote Controllers"]
-        WSHub["WebSocket Hub (Room Manager)"]
-        VoteService["Vote & Aggregation Service"]
+    subgraph BackendEngine["Go (Gin) Backend API Cluster (:8080)"]
+        Router["Gin Router Engine"]
+        Middlewares["Middlewares\n- JWT Auth (HS256)\n- RBAC (Admin/User)\n- Redis Rate Limiter (120 req/min)\n- CORS"]
+        Handlers["Handler Controllers\n- Auth & User Profile\n- Poll & Clone Controller\n- Vote & Aggregation\n- Notifications & Auditing\n- Health & Analytics\n- AI Insights (Gemini)"]
+        Services["Domain Services Layer\n- AuthService & JWTService\n- PollService & VoteService\n- NotificationService\n- SchedulerService (Cron)\n- AuditService & AIService"]
+        WSHub["WebSocket Room Manager\n- Goroutine Hub Engine"]
     end
 
-    subgraph DataTier["Data & Cache Layer"]
-        MongoDB[("MongoDB 8.0\n- Users, Polls, Votes\n- Unique Compound Index\n- Aggregation Pipeline")]
-        Redis[("Redis 7.0\n- 5-Min TTL Cache-Aside\n- Pub/Sub Channel: poll:updates:*")]
+    subgraph DataStorage["Data & Cache Layer"]
+        MongoDB[("MongoDB 8.0\n- users, polls, votes\n- notifications, audit_logs\n- Compound UK Indexes")]
+        Redis[("Redis 7.0 In-Memory\n- Cache-Aside (5-Min TTL)\n- Sliding-Window Rate Limiting\n- Pub/Sub: poll:updates:*")]
     end
 
-    Clients --> Nginx
-    UserA -->|1. HTTP POST /api/polls| CORSMiddleware
-    UserB -->|4. HTTP POST /api/polls/:id/vote| CORSMiddleware
-    CORSMiddleware --> Router
-    Router --> AuthMiddleware
-    AuthMiddleware --> PollHandler
-    PollHandler --> VoteService
-
-    VoteService -->|Atomic Insert & Compound Index Check| MongoDB
-    VoteService -->|Invalidate Cache DEL poll:results:id| Redis
-    VoteService -->|Publish Result to Redis Channel| Redis
-    Redis -.->|Subscribe to Updates| WSHub
-
-    UserA -.->|2. WebSocket ws://api/ws/polls/:id| WSHub
-    UserB -.->|3. WebSocket ws://api/ws/polls/:id| WSHub
-    WSHub -.->|5. Broadcast Real-Time Tally JSON| UserA
-    WSHub -.->|5. Broadcast Real-Time Tally JSON| UserB
+    Clients --> Guard
+    Guard --> Nginx
+    Browser -->|HTTP REST APIs + Bearer JWT| Middlewares
+    WSClient <-->|WebSocket Stream /ws/polls/:id| WSHub
+    Middlewares --> Router
+    Router --> Handlers
+    Handlers --> Services
+    Services --> MongoDB
+    Services <-->|Cache Hit/Miss & Pub/Sub| Redis
+    Redis -.->|Cross-Node Synchronization| WSHub
 ```
 
 ---
 
-## 🔄 End-to-End Real-Time User Flow
+## 🌟 What Has Been Built (Placement-Focused Features)
 
-The platform enables full real-time collaboration between creators and voters:
-
-```
-You create a poll
-      ↓
-Poll saved in MongoDB (Unique ObjectID generated)
-      ↓
-Redirect to /polls/:id
-      ↓
-Click "Share Poll Link" (Copies URL to Clipboard)
-      ↓
-Send link to Friend (e.g. WhatsApp / Slack)
-      ↓
-Friend opens link: /polls/:id
-      ↓
-Friend's browser connects to WebSocket (🟢 Live Badge appears)
-      ↓
-Friend casts vote
-      ↓
-MongoDB writes vote + Redis invalidates cache + Pub/Sub publishes update
-      ↓
-Your screen & friend's screen update instantly without page refresh!
-```
+| Feature | Implementation Highlights | Layer |
+|---|---|---|
+| **Production SaaS Landing Page** | Streamlined wide desktop layout (`max-w-[1500px]`) with static hero preview, core capabilities, 3-step guide, real-time architecture, and analytics preview | Frontend (React) |
+| **Strict Route Protection** | `<ProtectedRoute />` guarding private pages, zero-flicker loading state, and `/login?redirect=` return navigation | Frontend (React Router v6) |
+| **Real-Time Polling** | WebSocket room broadcasting + Redis Pub/Sub for horizontal scaling | Backend (Go) + Frontend (React) |
+| **Concurrency Safety** | MongoDB unique compound index `{ poll_id: 1, user_id: 1 }` preventing double-voting | Database + Service |
+| **Analytics Dashboard** | Interactive `recharts` charts (Votes per Day, Category Distribution, Top 5 Polls, Status) | Frontend + MongoDB Aggregation |
+| **Persistent Notifications** | MongoDB `notifications` collection with live unread badge, mark read, and delete | Go + MongoDB + React Bell |
+| **Poll Expiry Scheduler** | Go background cron worker auto-closing expired polls with WebSocket broadcasts | Go Background Goroutine |
+| **Poll Cloning** | One-click duplication (`POST /api/polls/:id/clone`) of questions & choices | Go + MongoDB + React |
+| **Poll Templates** | 5 pre-configured survey templates (Technology, Feedback, Hackathon, Sports, Retrospective) | React UI Component |
+| **User Activity Timeline** | Chronological audit feed of created polls and votes cast (`GET /api/users/timeline`) | Go + MongoDB + React Profile |
+| **Role-Based Access Control** | `admin` vs `user` roles with protected audit logs & administrative deletion | Gin Middleware + Admin Portal |
+| **Security Audit Logs** | Comprehensive `audit_logs` tracking IP, user, action, target resource, and timestamps | Go + MongoDB Collection |
+| **Rate Limiter** | Redis sliding-window counter limiting requests to 120 req/minute with in-memory fallback | Gin Middleware |
+| **Realistic AI Insights** | Google Gemini API + statistical heuristic fallback analyzing winning margins & recommendations | Go Service + React Card |
+| **Health Monitoring** | Dedicated `/health`, `/health/mongo`, and `/health/redis` telemetry endpoints | Go Handlers + Dashboard Badge |
+| **Report Exporting & QR** | Client-side CSV/JSON export + zero-dependency SVG QR code generator for mobile sharing | React Modals + Canvas |
 
 ---
 
-## ✨ Key Features
+## 🧩 Key Architecture Modules
 
-- **🔐 Robust Authentication & Security**:
-  - Secure bcrypt password hashing ($2a$10$ work factor).
-  - Stateless JWT authentication (HS256) with custom claims (`user_id`, `email`) and automatic expiration validation.
-  - Strict resource ownership verification (only poll creators can update status or delete polls).
+### 1. Real-Time WebSocket & Redis Pub/Sub Synchronization
+- **WebSocket Hub**: Manages rooms keyed by `poll_id`.
+- **Redis Pub/Sub**: When a vote is recorded or a poll expires, an event is published to Redis channel `poll:updates:<poll_id>`. All backend instances receive the event and broadcast to active WebSocket clients.
 
-- **⚡ Real-Time Live Updates via WebSockets & Redis Pub/Sub**:
-  - Instant live vote count and percentage updates pushed to all connected viewers without polling.
-  - Horizontally scalable room manager: background goroutines subscribe to Redis Pub/Sub channels (`poll:updates:<id>`) to propagate updates across multiple backend nodes.
-  - Client-side auto-reconnection with exponential backoff and ping/pong keep-alives.
+### 2. Production SaaS Landing Page & Navigation Design
+PulsePoll follows a strict **"Explain + Show on Home, Perform on Application Pages"** product architecture:
+- **No Fake Interactive Demos**: The Home page contains zero simulated voting, fake vote counters, or mock WebSocket events. Actual polling occurs on the real application routes (`/polls/:id`).
+- **Wide Desktop Grid (1400px–1500px)**: The container uses `max-w-[1500px] w-full mx-auto px-4 sm:px-8 lg:px-12`, eliminating narrow centered wrappers and providing an industrial SaaS appearance.
+- **Core 5-Section Layout**:
+  1. **Hero**: Wide 2-column layout (~55% left / ~45% right).
+     - Left: Value proposition (*"Ask. Vote. See What People Think."*), direct navigation CTAs (*Create Your First Poll*, *Explore Polls*), and three trust points (*Easy to create*, *Real-time voting*, *Instant results*).
+     - Right: **Static Product Preview** labeled `PRODUCT PREVIEW`, `Sample Results`, and `Sample response distribution` with no interactive click handlers.
+  2. **Core Capabilities**: Wide 4-column balanced cards:
+     - *Create Live Polls*: "Create questions and answer choices in seconds."
+     - *Collect Votes*: "Let your audience participate from any device."
+     - *See Results in Real Time*: "Watch genuine responses update instantly."
+     - *Understand Your Audience*: "Use analytics to understand participation and trends."
+  3. **How PulsePoll Works**: Wide horizontal 3-step visual guide (*01 Create*, *02 Share*, *03 Discover*) connected by an aesthetic desktop line.
+  4. **Real-Time Architecture**: Static 7-step architecture diagram:
+     `Voter` ➔ `Vote Request` ➔ `Go Backend` ➔ `MongoDB` ➔ `Redis Pub/Sub` ➔ `WebSocket` ➔ `Updated Results`
+     with clear technology tags for **Go**, **MongoDB**, **Redis**, and **WebSocket**.
+  5. **Analytics Preview**: Compact 2-column showcase labeled `SAMPLE ANALYTICS PREVIEW` highlighting *Participation trends*, *Category breakdowns*, and *Poll response analysis*, with an *Explore Analytics* CTA.
+- **Compact Professional Footer**: 4-column layout including brand tagline, Product links, Account links, Technology stack, and `© 2026 PulsePoll`.
 
-- **🔗 1-Click Shareable Poll Links**:
-  - Dynamic route generation (`/polls/:id`) with one-click clipboard copying.
-  - Live connection status badge (`🟢 Live`) indicating active WebSocket room subscription.
+### 3. Critical Route Protection & Authentication Architecture (`<ProtectedRoute />`)
+Unauthenticated visitors can **never** access private application routes, even by manually typing URLs in the browser address bar:
+- **Zero-Flicker Loading Gate**: `<ProtectedRoute />` checks `loading` state from `AuthContext` before rendering. While verifying session tokens against `GET /api/auth/me`, a loading indicator prevents brief flashes of private content.
+- **Guarded Navigation & Return URL**: Unauthenticated access attempts to protected routes redirect immediately to `/login?redirect=${encodeURIComponent(path)}`. Upon successful login or registration, the user is returned to their requested page.
+- **Dual-Tier Protection**:
+  - **Frontend SPA**: React Router wrappers block route rendering.
+  - **Backend REST API**: Gin `middleware.AuthMiddleware(jwtService)` validates Bearer JWT signatures, rejecting unauthenticated API calls with HTTP `401 Unauthorized`.
+- **Smart Navbar & CTAs**:
+  - Unauthenticated visitors see: *Home*, *Explore Polls*, *How It Works*, *Features*, *Sign In* (`/login`), and *Create a Poll* (`/register?redirect=/create-poll`).
+  - Authenticated users see: *Dashboard*, *Explore Polls*, *Analytics*, *Leaderboard*, *My Polls*, *Create Poll*, *Notification Bell*, and *User Profile*.
 
-- **🛡️ Concurrency-Safe Single-Vote Guarantee**:
-  - Enforced at both the business logic layer and database engine level via MongoDB **unique compound index** on `{ poll_id: 1, user_id: 1 }`.
-  - Prevents race conditions and double-voting even during concurrent requests.
+### 4. Analytics & Interactive Visual Dashboard (Recharts)
+- **Votes Per Day**: Smooth `AreaChart` with gradient fill showcasing activity velocity.
+- **Polls Per Category**: `BarChart` categorized by Technology, Education, Sports, Entertainment, and General.
+- **Top 5 Polls**: Horizontal engagement leaderboard `BarChart`.
+- **Poll Status Distribution**: Donut `PieChart` contrasting active vs closed polls.
 
-- **🚀 Sub-Millisecond Aggregation & Redis Caching**:
-  - High-throughput MongoDB aggregation pipeline computes vote counts and percentages dynamically.
-  - Read-through (cache-aside) caching with a 5-minute TTL in Redis.
-  - Instant cache invalidation triggered immediately when a new vote is successfully recorded.
+### 5. Persistent Notification Center
+- Persistent notifications collection storing:
+  ```json
+  {
+    "_id": "ObjectId",
+    "user_id": "ObjectId",
+    "title": "Poll Closed (Expired)",
+    "message": "Your poll reached its scheduled expiration time.",
+    "type": "poll_expired",
+    "link": "/polls/66e8...",
+    "is_read": false,
+    "created_at": "2026-09-17T18:00:00Z"
+  }
+  ```
+- Interactive header bell dropdown with real-time updates and one-click mark all as read.
+
+### 6. Background Poll Expiry Scheduler
+- Background goroutine ticking every 15s querying `expires_at <= now` and `status == "active"`.
+- Closes expired polls atomically, invalidates cache, logs audit entry, pushes persistent notification to creator, and broadcasts WebSocket event to open tabs.
+
+### 7. Role-Based Access Control (RBAC) & Audit Logs
+- Roles: `user` (default) and `admin`.
+- Endpoint `/api/admin/audit-logs` protected by `RequireRole(model.RoleAdmin)` middleware.
+- Structured auditing captures: `timestamp`, `user_id`, `user_email`, `action` (`vote_cast`, `poll_create`, `poll_expire`, `poll_delete`, `user_login`), `resource`, `details`, `ip_address`.
+
+### 8. AI Poll Insights Engine (Gemini + Heuristic Fallback)
+- Evaluates poll distributions and outputs structured analytical feedback:
+  - **Executive Summary**
+  - **Key Takeaways**
+  - **Winning Option & Margin Analysis**
+  - **Vote Distribution Analysis**
+  - **Actionable Recommendations**
+
+### 9. Enterprise Health Monitoring & Telemetry
+- `GET /health` & `GET /api/health`: Overall system readiness.
+- `GET /health/mongo` & `GET /api/health/mongo`: MongoDB ping connectivity.
+- `GET /health/redis` & `GET /api/health/redis`: Redis cache & Pub/Sub status.
+- Real-time telemetry badges displayed directly in the Analytics Dashboard.
+
+### 10. Poll Cloning & Reusable Poll Templates
+- **Clone Feature**: Replicates question, options, and category into a fresh active poll.
+- **Quick Templates**: 5 one-click survey templates built into the poll creation interface.
+
+### 11. Export Reports & Dynamic QR Sharing
+- Export results to CSV or JSON formats.
+- Built-in SVG QR Code generator enabling mobile participants to scan and vote instantly.
 
 ---
 
 ## 🛠 Technology Stack
 
 ### Backend
-| Technology | Description |
-| :--- | :--- |
-| **Go 1.24** | High-performance compiled systems language |
-| **Gin Gonic** | Fast HTTP web framework with middleware pipeline |
-| **MongoDB Go Driver v2** | Native NoSQL document database driver |
-| **Go-Redis v9** | Modern Redis client with Pub/Sub support |
-| **Gorilla WebSocket** | RFC 6455 compliant WebSocket implementation |
-| **golang-jwt/jwt/v5** | Secure JSON Web Token library |
-| **golang.org/x/crypto/bcrypt** | Password hashing standard |
+- **Language**: Go 1.24 (High-concurrency compiled binary)
+- **Web Framework**: Gin Gonic v1.10
+- **Database**: MongoDB Go Driver v2 (Document persistence & aggregation pipeline)
+- **Cache & Pub/Sub**: Go-Redis v9 (Sub-millisecond caching & Pub/Sub messaging)
+- **Real-Time**: Gorilla WebSocket v1.5 (RFC 6455 compliant)
+- **Security**: `golang-jwt/jwt/v5` (HS256) & `golang.org/x/crypto/bcrypt`
 
 ### Frontend
-| Technology | Description |
-| :--- | :--- |
-| **React 18** | Declarative component-based UI library |
-| **Vite 6** | Ultra-fast build tool and development server |
-| **Tailwind CSS 3** | Utility-first CSS framework |
-| **React Router v6** | Client-side routing with protected route guards |
-| **Axios** | HTTP client with automatic Bearer token interceptor |
-| **Lucide React** | Modern iconography set |
+- **Framework**: React 18 SPA with Vite 6
+- **Styling**: Tailwind CSS 3 (Dark/light glassmorphic UI)
+- **Data Visualization**: Recharts v2 (Responsive Area, Bar, and Pie charts)
+- **Icons**: Lucide React
+- **Routing**: React Router v6 with `<ProtectedRoute />` Auth Guards
 
-### Infrastructure & DevOps
-| Technology | Description |
-| :--- | :--- |
-| **Docker & Docker Compose** | Multi-container orchestration |
-| **Nginx Alpine** | Lightweight production web server and SPA router |
-| **MongoDB 8.0** | Document database with replication readiness |
-| **Redis 7.0 Alpine** | In-memory cache and message broker |
+### Infrastructure
+- **Containerization**: Docker & Docker Compose
+- **Web Server / Reverse Proxy**: Nginx Alpine
 
 ---
 
-## 🗄 Database Design & Indexing
+## 🗄 Database Design & MongoDB Indexes
 
 ```mermaid
 erDiagram
     USERS ||--o{ POLLS : creates
     USERS ||--o{ VOTES : casts
-    POLLS ||--o{ VOTES : receives
+    USERS ||--o{ NOTIFICATIONS : receives
+    USERS ||--o{ AUDIT_LOGS : triggers
+    POLLS ||--o{ VOTES : contains
 
     USERS {
         ObjectID _id PK
         string name
         string email UK "Index: unique_user_email"
         string password "bcrypt hash"
+        string role "admin | user"
         date created_at
-        date updated_at
     }
 
     POLLS {
         ObjectID _id PK
         string question
+        string category "Index: category"
         array options "Array of { id, text }"
         ObjectID creator_id FK "Index: creator_id"
         string creator_name
         string status "active | closed (Index: status)"
-        date expires_at
+        date expires_at "Index: expires_at"
         date created_at "Index: created_at"
-        date updated_at
     }
 
     VOTES {
@@ -201,220 +249,176 @@ erDiagram
         ObjectID user_id FK "Compound UK: { poll_id: 1, user_id: 1 }"
         date created_at
     }
+
+    NOTIFICATIONS {
+        ObjectID _id PK
+        ObjectID user_id FK "Index: user_id"
+        string title
+        string message
+        string type
+        string link
+        bool is_read "Index: is_read"
+        date created_at "Index: created_at"
+    }
+
+    AUDIT_LOGS {
+        ObjectID _id PK
+        ObjectID user_id FK "Index: user_id"
+        string user_email
+        string action "Index: action"
+        string resource_type
+        string resource_id
+        string details
+        string ip_address
+        date timestamp "Index: timestamp"
+    }
 ```
+
+---
+
+## 📡 API & WebSocket Route Reference
+
+### Health & Telemetry
+| Method | Endpoint | Description | Auth Required |
+| :--- | :--- | :--- | :--- |
+| `GET` | `/health` / `/api/health` | Comprehensive system health status | No |
+| `GET` | `/health/mongo` / `/api/health/mongo` | MongoDB connection status | No |
+| `GET` | `/health/redis` / `/api/health/redis` | Redis connection & cache status | No |
+
+### Authentication & User Profile
+| Method | Endpoint | Description | Auth Required |
+| :--- | :--- | :--- | :--- |
+| `POST` | `/api/auth/register` | Register new user account | No |
+| `POST` | `/api/auth/login` | Login and receive JWT token | No |
+| `GET` | `/api/auth/me` | Fetch authenticated profile & validate session | **Yes (JWT)** |
+| `GET` | `/api/users/profile` | Aggregated user metrics & statistics | **Yes (JWT)** |
+| `PUT` | `/api/users/profile` | Update display name / password | **Yes (JWT)** |
+| `GET` | `/api/users/votes` | Fetch user voting history | **Yes (JWT)** |
+| `GET` | `/api/users/timeline` | Fetch user activity timeline | **Yes (JWT)** |
+
+### Persistent Notifications
+| Method | Endpoint | Description | Auth Required |
+| :--- | :--- | :--- | :--- |
+| `GET` | `/api/notifications` | Fetch user notifications & unread count | **Yes (JWT)** |
+| `PUT` | `/api/notifications/read-all` | Mark all notifications as read | **Yes (JWT)** |
+| `PUT` | `/api/notifications/:id/read` | Mark individual notification as read | **Yes (JWT)** |
+| `DELETE` | `/api/notifications/:id` | Delete notification | **Yes (JWT)** |
+
+### Polls & Voting
+| Method | Endpoint | Description | Auth Required |
+| :--- | :--- | :--- | :--- |
+| `GET` | `/api/polls` | List public polls (search, category, sort) | No |
+| `GET` | `/api/polls/:id` | Get poll details | No |
+| `POST` | `/api/polls` | Create new live poll | **Yes (JWT)** |
+| `POST` | `/api/polls/:id/clone` | Duplicate / clone poll | **Yes (JWT)** |
+| `PUT` | `/api/polls/:id` | Update poll status / question | **Yes (Owner/Admin)** |
+| `DELETE` | `/api/polls/:id` | Delete poll and associated votes | **Yes (Owner/Admin)** |
+| `POST` | `/api/polls/:id/vote` | Cast authenticated vote for option | **Yes (JWT)** |
+| `GET` | `/api/polls/:id/results` | Aggregated results & percentages | No (Optional JWT) |
+| `GET` | `/api/polls/:id/export` | Export results as CSV report | No |
+| `POST` | `/api/polls/:id/ai-insights` | Generate AI poll insights & summary | No |
+
+### Administrator Portal (RBAC Protected)
+| Method | Endpoint | Description | Role Required |
+| :--- | :--- | :--- | :--- |
+| `GET` | `/api/admin/audit-logs` | Fetch system audit logs with pagination | **Admin** |
+| `GET` | `/api/admin/users` | List registered system users | **Admin** |
+| `DELETE` | `/api/admin/polls/:id` | Admin poll moderation & removal | **Admin** |
+
+### Real-Time WebSocket Feed
+| Protocol | Endpoint | Description |
+| :--- | :--- | :--- |
+| `WS` | `/api/ws/polls/:id` | Real-time WebSocket connection for live vote updates & expiry events |
+
+---
+
+## 🔒 Frontend Routing & Access Control Matrix
+
+| Route Path | Route Component | Access Level | Unauthenticated Behavior |
+| :--- | :--- | :--- | :--- |
+| `/` | `HomePage` | **Public** | Displays SaaS landing page (Never auto-redirects to Dashboard) |
+| `/explore` | `CommunityPolls` | **Public** | Allows discovering public polls |
+| `/polls/:id` | `PollDetails` | **Public** | Allows viewing questions and real-time results |
+| `/login` | `Login` | **Public** | Preserves `?redirect=` return destination |
+| `/register` | `Register` | **Public** | Preserves `?redirect=` return destination |
+| `/dashboard` | `Dashboard` | **Protected** | Redirects to `/login?redirect=%2Fdashboard` |
+| `/analytics` | `AnalyticsPage` | **Protected** | Redirects to `/login?redirect=%2Fanalytics` |
+| `/leaderboard` | `Leaderboard` | **Protected** | Redirects to `/login?redirect=%2Fleaderboard` |
+| `/my-polls` | `MyPolls` | **Protected** | Redirects to `/login?redirect=%2Fmy-polls` |
+| `/create-poll` | `CreatePoll` | **Protected** | Redirects to `/login?redirect=%2Fcreate-poll` |
+| `/profile` | `Profile` | **Protected** | Redirects to `/login?redirect=%2Fprofile` |
+| `/admin` | `AdminDashboard` | **Protected (Admin)** | Redirects to `/login?redirect=%2Fadmin` |
 
 ---
 
 ## 🐳 Docker Compose & Microservices
 
-The root [`docker-compose.yml`](docker-compose.yml) orchestrates 4 interconnected microservices on an isolated bridge network `live_poll_network`:
-
-| Service | Container Name | Image / Build | Port Mapping | Healthcheck |
-| :--- | :--- | :--- | :--- | :--- |
-| **mongodb** | `guvi-mongodb` | `mongo:8` | `27017:27017` | `mongosh --eval "db.adminCommand('ping')"` |
-| **redis** | `guvi-redis` | `redis:7-alpine` | `6379:6379` | `redis-cli ping` |
-| **backend** | `guvi-backend` | `./backend/Dockerfile` | `8080:8080` | Depends on Mongo & Redis healthy |
-| **frontend** | `guvi-frontend` | `./frontend/Dockerfile` | `3000:80` | Depends on Backend started |
-
----
-
-## 📁 Project Structure
-
-```
-.
-├── docker-compose.yml           # Multi-service orchestration (Backend, Frontend, Mongo, Redis)
-├── .gitignore                   # Comprehensive repository gitignore
-├── README.md                    # Project documentation & interview guide
-│
-├── backend/                     # Go Backend Service
-│   ├── Dockerfile               # Multi-stage production build (Alpine runner)
-│   ├── .dockerignore
-│   ├── .env.example             # Backend environment template
-│   ├── go.mod / go.sum          # Go module dependencies
-│   ├── cmd/
-│   │   └── api/
-│   │       └── main.go          # Application entrypoint & graceful shutdown
-│   └── internal/
-│       ├── config/              # Environment & configuration loader
-│       ├── database/            # MongoDB & Redis client connections
-│       ├── handler/             # HTTP & WebSocket controllers + unit tests
-│       ├── middleware/          # JWT Auth & CORS middlewares + unit tests
-│       ├── model/               # Domain data structures & DTOs
-│       ├── repository/          # Database persistence layer (Mongo queries)
-│       ├── router/              # Gin route registration
-│       ├── service/             # Business logic & caching + unit tests
-│       └── websocket/           # WebSocket Client & Hub (Room Manager)
-│
-└── frontend/                    # React Frontend Application
-    ├── Dockerfile               # Multi-stage production build (Nginx runner)
-    ├── .dockerignore
-    ├── nginx.conf               # Nginx SPA fallback & caching configuration
-    ├── .env.example             # Frontend environment template
-    ├── package.json             # NPM dependencies & scripts
-    ├── index.html               # SPA root document
-    ├── vite.config.js           # Vite build configuration
-    ├── tailwind.config.js       # Tailwind CSS design system configuration
-    └── src/
-        ├── api/                 # Axios HTTP client with JWT injection
-        ├── components/          # Reusable UI, Auth, and Poll components
-        ├── context/             # Global AuthContext provider
-        ├── hooks/               # usePollWebSocket & custom hooks
-        ├── pages/               # Home, Login, Register, CreatePoll, PollDetail, Profile
-        ├── services/            # API service calls (auth, poll, vote)
-        ├── App.jsx              # Application router & routes
-        └── main.jsx             # React DOM bootstrap
-```
-
----
-
-## 🚀 Getting Started
-
-### Method 1: Running with Docker Compose (Recommended)
-
-Start all 4 services with one single command:
+Start the full stack in containerized production mode:
 
 ```bash
-# Clone repository
-git clone https://github.com/your-username/live-polling-app.git
-cd live-polling-app
-
-# Launch entire stack
 docker compose up --build -d
 ```
 
-- **Frontend Application**: [`http://localhost:3000`](http://localhost:3000)
-- **Backend API**: [`http://localhost:8080/api`](http://localhost:8080/api)
-- **Health Endpoint**: [`http://localhost:8080/health`](http://localhost:8080/health)
+| Service | Container Name | Port Mapping | Healthcheck Command |
+| :--- | :--- | :--- | :--- |
+| **mongodb** | `guvi-mongodb` | `27017:27017` | `mongosh --eval "db.adminCommand('ping')"` |
+| **redis** | `guvi-redis` | `6379:6379` | `redis-cli ping` |
+| **backend** | `guvi-backend` | `8080:8080` | Built with Alpine binary runner |
+| **frontend** | `guvi-frontend` | `3000:80` | Nginx SPA web server |
 
-To stop all services:
+### 🔍 Container Shell Access Commands
+
+To interact directly with the database or cache containers:
+
 ```bash
-docker compose down
+# Connect to MongoDB Shell (mongosh)
+docker exec -it guvi-mongodb mongosh
+
+# Connect to Redis CLI
+docker exec -it guvi-redis redis-cli
+
+# View Backend Logs
+docker logs -f guvi-backend
 ```
+
+Access URLs:
+- **Frontend SPA**: `http://localhost:3000` (or `http://localhost:5173` via Vite dev server)
+- **Backend REST API**: `http://localhost:8080/api`
+- **Health Telemetry**: `http://localhost:8080/health`
 
 ---
 
-### Method 2: Running Locally from Source
+## 🚀 Getting Started Locally
 
-#### 1. Start MongoDB and Redis
+### 1. Start MongoDB and Redis
 ```bash
-# Start databases using Docker
-docker run -d --name local-mongo -p 27017:27017 mongo:8
-docker run -d --name local-redis -p 6379:6379 redis:7-alpine
+docker run -d --name guvi-mongodb -p 27017:27017 mongo:8
+docker run -d --name guvi-redis -p 6379:6379 redis:7-alpine
 ```
 
-#### 2. Start Go Backend
+### 2. Start Go Backend
 ```bash
 cd backend
 cp .env.example .env
 go mod download
 go run ./cmd/api
-# Backend will start on http://localhost:8080
+# Backend runs on http://localhost:8080
 ```
 
-#### 3. Start React Frontend
+### 3. Start React Frontend
 ```bash
 cd frontend
 cp .env.example .env
 npm install
 npm run dev
-# Frontend will start on http://localhost:5173
+# Frontend runs on http://localhost:5173
 ```
-
----
-
-## 🧪 Shareable Links & Multi-Tab Testing Guide
-
-To experience real-time synchronization locally:
-
-1. Open [`http://localhost:5173`](http://localhost:5173) in your normal browser window.
-2. Sign in as **Creator** (`srinath@example.com` / `securePassword123`) and click **Create Poll**.
-3. Create your poll questions & options, then click **Publish Poll**.
-4. On the Poll Details page, click **"Share Poll Link"** to copy the URL to your clipboard.
-5. Open an **Incognito / Private Window** (simulating a friend on another device).
-6. Paste the link. The poll options will load and the **`🟢 Live`** badge will connect.
-7. Sign in as a second user (e.g. `priya@example.com`) and cast a vote.
-8. Look at your first window — the vote count and animated percentage bars will **instantly update in real time**!
-
-> **Note on Localhost vs Production**: `http://localhost:5173` is accessible on your local machine. Deploying the frontend (e.g., Vercel / Netlify) and backend (e.g., AWS ECS / Railway / DigitalOcean) makes the shareable link publicly accessible worldwide!
-
----
-
-## 📡 API & WebSocket Documentation
-
-### Authentication Endpoints
-| Method | Endpoint | Description | Auth Required |
-| :--- | :--- | :--- | :--- |
-| `POST` | `/api/auth/register` | Register new user account | No |
-| `POST` | `/api/auth/login` | Login and obtain JWT token | No |
-| `GET` | `/api/auth/me` | Fetch authenticated user's profile | **Yes (Bearer JWT)** |
-
-### Poll Management Endpoints
-| Method | Endpoint | Description | Auth Required |
-| :--- | :--- | :--- | :--- |
-| `GET` | `/api/polls` | List paginated polls (`?page=1&limit=10&status=active`) | No |
-| `GET` | `/api/polls/:id` | Get poll details by ID | No |
-| `POST` | `/api/polls` | Create a new poll with options | **Yes (Bearer JWT)** |
-| `PUT` | `/api/polls/:id` | Update poll status / question (Owner only) | **Yes (Bearer JWT)** |
-| `DELETE` | `/api/polls/:id` | Delete poll and related votes (Owner only) | **Yes (Bearer JWT)** |
-
-### Voting Endpoints
-| Method | Endpoint | Description | Auth Required |
-| :--- | :--- | :--- | :--- |
-| `POST` | `/api/polls/:id/vote` | Cast a single vote for an option | **Yes (Bearer JWT)** |
-| `GET` | `/api/polls/:id/results` | Get aggregated vote results & percentages | No (Optional JWT) |
-
-### WebSocket Real-Time Feed
-| Protocol | Endpoint | Description |
-| :--- | :--- | :--- |
-| `WS` | `/api/ws/polls/:id` | Real-time WebSocket connection subscribing to poll updates |
-
-#### Real-Time Update Payload (`POLL_UPDATE`):
-```json
-{
-  "type": "POLL_UPDATE",
-  "data": {
-    "poll_id": "66e85293f0b001a1a1a1a1a1",
-    "question": "What is your primary backend language?",
-    "status": "active",
-    "total_votes": 42,
-    "results": [
-      { "option_id": "opt-1", "text": "Go", "vote_count": 28, "percentage": 66.7 },
-      { "option_id": "opt-2", "text": "Rust", "vote_count": 14, "percentage": 33.3 }
-    ]
-  }
-}
-```
-
----
-
-## ⚙️ Environment Configuration
-
-### Backend (`backend/.env`)
-| Variable | Default Value | Description |
-| :--- | :--- | :--- |
-| `PORT` | `8080` | HTTP Server port |
-| `APP_ENV` | `development` | Environment mode (`development` / `production`) |
-| `GIN_MODE` | `debug` | Gin router mode (`debug` / `release` / `test`) |
-| `MONGO_URI` | `mongodb://localhost:27017` | MongoDB connection URI |
-| `MONGO_DB_NAME` | `polling_app` | MongoDB target database name |
-| `JWT_SECRET` | `super_secret_jwt_key...` | HMAC-SHA256 signing secret |
-| `JWT_EXPIRY_HOURS` | `24` | Token lifetime duration in hours |
-| `REDIS_ADDR` | `localhost:6379` | Redis host & port |
-| `REDIS_PASSWORD` | `""` | Optional Redis auth password |
-| `REDIS_DB` | `0` | Redis logical DB index |
-| `REDIS_ENABLED` | `true` | Toggle Redis caching & Pub/Sub |
-
-### Frontend (`frontend/.env`)
-| Variable | Default Value | Description |
-| :--- | :--- | :--- |
-| `VITE_API_BASE_URL` | `http://localhost:8080/api` | Base URL for REST API endpoints |
-| `VITE_WS_BASE_URL` | `ws://localhost:8080/api/ws` | Base URL for WebSocket connections |
 
 ---
 
 ## 🧪 Automated Testing Suite
 
-Run the full automated testing suite across services, middlewares, and HTTP handlers:
+Execute the Go test suite across handlers, services, middlewares, and models:
 
 ```bash
 cd backend
@@ -422,39 +426,40 @@ go test -v ./...
 ```
 
 ### Verified Test Cases:
-- ✅ `TestJWTService_GenerateAndValidateToken`: Validates token creation and claim parsing.
-- ✅ `TestJWTService_InvalidTokenSignature`: Tests signature tampering protection.
-- ✅ `TestJWTService_ExpiredToken`: Asserts automatic token expiration handling.
-- ✅ `TestAuthMiddleware_MissingHeader`: Verifies 401 response on missing headers.
-- ✅ `TestAuthMiddleware_ValidToken`: Verifies Gin context claim injection.
-- ✅ `TestAuthHandler_Register_DuplicateEmail`: Tests 409 Conflict duplicate user handling.
-- ✅ `TestVoteHandler_CastVote_AlreadyVoted`: Tests 409 Conflict on double-voting attempts.
-- ✅ `TestVoteHandler_CastVote_ClosedPoll`: Asserts 400 Bad Request on closed polls.
+- ✅ `TestJWTService_GenerateAndValidateToken`: Token creation and HMAC-SHA256 signature verification.
+- ✅ `TestJWTService_InvalidTokenSignature`: Signature tampering prevention.
+- ✅ `TestJWTService_ExpiredToken`: Automatic rejection of expired tokens.
+- ✅ `TestAuthMiddleware_MissingHeader` & `TestAuthMiddleware_ValidToken`: Bearer header injection & context parsing.
+- ✅ `TestAuthHandler_Register_DuplicateEmail`: 409 Conflict validation on existing emails.
+- ✅ `TestVoteHandler_CastVote_AlreadyVoted`: Double-voting rejection.
+- ✅ `TestVoteHandler_CastVote_ClosedPoll`: Rejection of votes on closed polls.
 
 ---
 
 ## 💡 System Design & Interview Q&A
 
-### 1. How do you prevent double-voting during high-concurrency race conditions?
-> **Answer:** Double-voting prevention is enforced at two distinct layers:
-> 1. **Application Layer**: Prior to writing a vote, the `VoteService` checks if a record with `{ poll_id, user_id }` already exists.
-> 2. **Database Engine Layer**: In MongoDB, we created a **unique compound index** on `{ poll_id: 1, user_id: 1 }`. Even if two concurrent requests from the same user pass the application pre-check simultaneously, MongoDB's atomic index write guarantees that one insert succeeds and the second fails with duplicate key error `E11000`. The service detects this and returns an `ErrAlreadyVoted` (HTTP 409 Conflict).
+### 1. How does the application guarantee zero double-voting under concurrent race conditions?
+> **Answer:** Double-voting prevention operates at two layers:
+> 1. **Application Logic**: The service layer checks for existing votes with `{ poll_id, user_id }`.
+> 2. **Database Engine**: In MongoDB, a **unique compound index** on `{ poll_id: 1, user_id: 1 }` guarantees atomic constraint enforcement. If two requests execute simultaneously, MongoDB accepts one insert and rejects the second with error `E11000`, returned as HTTP `409 Conflict`.
 
-### 2. How does Redis Pub/Sub solve the WebSocket multi-server scaling problem?
-> **Answer:** If we scale the backend horizontally across multiple container replicas, Client A may be connected to Node 1 while Client B is connected to Node 2. When a vote is cast on Node 1, an in-memory broadcast would only notify clients on Node 1.
-> By integrating **Redis Pub/Sub**, when Node 1 records a vote, it publishes a message to channel `poll:updates:<poll_id>`. All backend nodes subscribe to these channels. Node 2 receives the Redis message and immediately broadcasts the updated vote results to its local WebSocket clients.
+### 2. How does Redis Pub/Sub allow WebSockets to scale horizontally across multiple backend instances?
+> **Answer:** In a multi-node cluster, Client A might be connected to Node 1 while Client B is connected to Node 2. When a vote arrives on Node 1, Node 1 records the vote and publishes a message to Redis channel `poll:updates:<poll_id>`. All backend nodes subscribe to Redis channels. Node 2 receives the Redis message and immediately broadcasts the updated tally to its local WebSocket clients.
 
-### 3. How does the Cache-Aside pattern work for Poll Results?
+### 3. How does PulsePoll enforce route security on both frontend SPA and backend REST APIs?
 > **Answer:**
-> 1. **Read Path**: When a client requests `GET /api/polls/:id/results`, the service checks Redis key `poll:results:<id>`.
->    - If present (**Cache Hit**), results return in <1ms without querying MongoDB.
->    - If missing (**Cache Miss**), the service runs the MongoDB aggregation pipeline, caches the calculated result in Redis with a 5-minute TTL, and returns the response.
-> 2. **Write Path (Invalidation)**: When a vote is cast (`POST /api/polls/:id/vote`), the service immediately issues `DEL poll:results:<id>` in Redis before publishing the real-time update. This ensures zero stale data while offloading heavy read traffic.
+> - **Frontend (User Experience Guard)**: Private routes (`/dashboard`, `/analytics`, `/leaderboard`, `/my-polls`, `/create-poll`) are wrapped in `<ProtectedRoute />`. Before rendering, it checks the authentication token. If unauthenticated, it immediately redirects to `/login?redirect=<url>` with zero screen flickering. Unauthenticated users see public pages (`/`, `/explore`, `/polls/:id`).
+> - **Backend (Data Integrity & Authorization)**: Frontend protection alone is never trusted. Every write or private query endpoint (`POST /api/polls`, `/api/users/*`, `/api/admin/*`, `/api/notifications/*`) passes through Gin's `AuthMiddleware(jwtService)`. If the request lacks a valid, unexpired JWT signature, the backend immediately returns HTTP `401 Unauthorized`.
 
-### 4. Why use Go and Gin for high-throughput live polling?
-> **Answer:** Go's lightweight concurrency model (goroutines consuming only ~2KB of initial stack memory vs ~1MB for OS threads) allows a single backend node to handle tens of thousands of concurrent WebSocket connections and HTTP requests with minimal CPU and memory overhead. Gin provides a fast, zero-allocation radix tree router ideal for latency-critical APIs.
+### 4. How does the Cache-Aside pattern work for Poll Results?
+> **Answer:**
+> - **Read**: `GET /api/polls/:id/results` checks Redis key `poll:results:<id>`. If found (Cache Hit), returns in <1ms. If absent (Cache Miss), computes via MongoDB aggregation pipeline and caches in Redis with a 5-minute TTL.
+> - **Write / Invalidation**: When a vote is cast, `VoteService` immediately calls `DEL poll:results:<id>` in Redis before publishing the real-time update.
+
+### 5. How does the Background Scheduler handle poll expiration?
+> **Answer:** A Go cron worker ticks periodically in a background goroutine. It queries MongoDB for active polls where `expires_at <= now`, sets their status to `closed`, invalidates the Redis cache, writes an audit record, dispatches a persistent notification to the creator, and broadcasts a `POLL_EXPIRED` WebSocket event to all open viewer tabs.
 
 ---
 
 ## 📜 License
-This project is open source and available under the [MIT License](LICENSE).
+This project is open-source software licensed under the [MIT License](LICENSE).

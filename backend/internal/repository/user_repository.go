@@ -20,6 +20,9 @@ type UserRepository interface {
 	Create(ctx context.Context, user *model.User) error
 	FindByEmail(ctx context.Context, email string) (*model.User, error)
 	FindByID(ctx context.Context, id bson.ObjectID) (*model.User, error)
+	Update(ctx context.Context, user *model.User) error
+	FindAll(ctx context.Context, page, limit int) ([]*model.User, int64, error)
+	Count(ctx context.Context) (int64, error)
 }
 
 type mongoUserRepository struct {
@@ -54,6 +57,9 @@ func (r *mongoUserRepository) Create(ctx context.Context, user *model.User) erro
 	now := time.Now().UTC()
 	user.CreatedAt = now
 	user.UpdatedAt = now
+	if user.Role == "" {
+		user.Role = model.RoleUser
+	}
 
 	result, err := r.collection.InsertOne(ctx, user)
 	if err != nil {
@@ -97,4 +103,51 @@ func (r *mongoUserRepository) FindByID(ctx context.Context, id bson.ObjectID) (*
 	}
 
 	return &user, nil
+}
+
+// Update saves modifications to a user record
+func (r *mongoUserRepository) Update(ctx context.Context, user *model.User) error {
+	user.UpdatedAt = time.Now().UTC()
+	filter := bson.M{"_id": user.ID}
+	update := bson.M{"$set": bson.M{
+		"name":       user.Name,
+		"password":   user.Password,
+		"role":       user.Role,
+		"updated_at": user.UpdatedAt,
+	}}
+
+	_, err := r.collection.UpdateOne(ctx, filter, update)
+	return err
+}
+
+// FindAll returns a paginated list of users for administration
+func (r *mongoUserRepository) FindAll(ctx context.Context, page, limit int) ([]*model.User, int64, error) {
+	total, err := r.collection.CountDocuments(ctx, bson.M{})
+	if err != nil {
+		return nil, 0, err
+	}
+
+	skip := int64((page - 1) * limit)
+	opts := options.Find().
+		SetSort(bson.D{{Key: "created_at", Value: -1}}).
+		SetSkip(skip).
+		SetLimit(int64(limit))
+
+	cursor, err := r.collection.Find(ctx, bson.M{}, opts)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer cursor.Close(ctx)
+
+	var users []*model.User
+	if err := cursor.All(ctx, &users); err != nil {
+		return nil, 0, err
+	}
+
+	return users, total, nil
+}
+
+// Count returns the total number of registered users
+func (r *mongoUserRepository) Count(ctx context.Context) (int64, error) {
+	return r.collection.CountDocuments(ctx, bson.M{})
 }

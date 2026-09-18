@@ -16,10 +16,11 @@ var (
 	ErrExpiredToken = errors.New("authentication token has expired")
 )
 
-// CustomClaims defines the JWT claims structure including custom user fields
+// CustomClaims defines the JWT claims structure including custom user fields and roles
 type CustomClaims struct {
-	UserID string `json:"user_id"`
-	Email  string `json:"email"`
+	UserID string         `json:"user_id"`
+	Email  string         `json:"email"`
+	Role   model.UserRole `json:"role"`
 	jwt.RegisteredClaims
 }
 
@@ -30,14 +31,14 @@ type JWTService interface {
 }
 
 type jwtService struct {
-	secretKey     []byte
+	secretKey      []byte
 	expiryDuration time.Duration
 }
 
 // NewJWTService creates a new JWTService instance with injected configuration
 func NewJWTService(cfg *config.Config) JWTService {
 	return &jwtService{
-		secretKey:     []byte(cfg.JWTSecret),
+		secretKey:      []byte(cfg.JWTSecret),
 		expiryDuration: cfg.JWTExpiryHours,
 	}
 }
@@ -45,9 +46,15 @@ func NewJWTService(cfg *config.Config) JWTService {
 // GenerateToken creates a signed JWT token with user claims and expiration
 func (s *jwtService) GenerateToken(user *model.User) (string, error) {
 	now := time.Now().UTC()
+	role := user.Role
+	if role == "" {
+		role = model.RoleUser
+	}
+
 	claims := CustomClaims{
 		UserID: user.ID.Hex(),
 		Email:  user.Email,
+		Role:   role,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(now.Add(s.expiryDuration)),
 			IssuedAt:  jwt.NewNumericDate(now),

@@ -18,21 +18,26 @@ import (
 
 // MockAuthService implements service.AuthService for handler unit tests
 type MockAuthService struct {
-	RegisterFunc   func(ctx context.Context, req *model.RegisterRequest) (*model.UserResponse, error)
-	LoginFunc      func(ctx context.Context, req *model.LoginRequest) (*model.AuthResponse, error)
-	GetProfileFunc func(ctx context.Context, userID string) (*model.UserResponse, error)
+	RegisterFunc            func(ctx context.Context, req *model.RegisterRequest, ip string) (*model.UserResponse, error)
+	LoginFunc               func(ctx context.Context, req *model.LoginRequest, ip string) (*model.AuthResponse, error)
+	GetProfileFunc          func(ctx context.Context, userID string) (*model.UserResponse, error)
+	GetProfileWithStatsFunc func(ctx context.Context, userID string) (*model.UserProfileResponse, error)
+	UpdateProfileFunc       func(ctx context.Context, userID string, req *model.UpdateProfileRequest) (*model.UserResponse, error)
+	GetUserVoteHistoryFunc  func(ctx context.Context, userID string) ([]*model.UserVoteHistoryItem, error)
+	GetActivityTimelineFunc func(ctx context.Context, userID string) ([]*model.ActivityTimelineItem, error)
+	ListUsersFunc           func(ctx context.Context, page, limit int) ([]*model.UserResponse, int64, error)
 }
 
-func (m *MockAuthService) Register(ctx context.Context, req *model.RegisterRequest) (*model.UserResponse, error) {
+func (m *MockAuthService) Register(ctx context.Context, req *model.RegisterRequest, ip string) (*model.UserResponse, error) {
 	if m.RegisterFunc != nil {
-		return m.RegisterFunc(ctx, req)
+		return m.RegisterFunc(ctx, req, ip)
 	}
 	return nil, nil
 }
 
-func (m *MockAuthService) Login(ctx context.Context, req *model.LoginRequest) (*model.AuthResponse, error) {
+func (m *MockAuthService) Login(ctx context.Context, req *model.LoginRequest, ip string) (*model.AuthResponse, error) {
 	if m.LoginFunc != nil {
-		return m.LoginFunc(ctx, req)
+		return m.LoginFunc(ctx, req, ip)
 	}
 	return nil, nil
 }
@@ -44,10 +49,45 @@ func (m *MockAuthService) GetProfile(ctx context.Context, userID string) (*model
 	return nil, nil
 }
 
+func (m *MockAuthService) GetProfileWithStats(ctx context.Context, userID string) (*model.UserProfileResponse, error) {
+	if m.GetProfileWithStatsFunc != nil {
+		return m.GetProfileWithStatsFunc(ctx, userID)
+	}
+	return nil, nil
+}
+
+func (m *MockAuthService) UpdateProfile(ctx context.Context, userID string, req *model.UpdateProfileRequest) (*model.UserResponse, error) {
+	if m.UpdateProfileFunc != nil {
+		return m.UpdateProfileFunc(ctx, userID, req)
+	}
+	return nil, nil
+}
+
+func (m *MockAuthService) GetUserVoteHistory(ctx context.Context, userID string) ([]*model.UserVoteHistoryItem, error) {
+	if m.GetUserVoteHistoryFunc != nil {
+		return m.GetUserVoteHistoryFunc(ctx, userID)
+	}
+	return nil, nil
+}
+
+func (m *MockAuthService) GetActivityTimeline(ctx context.Context, userID string) ([]*model.ActivityTimelineItem, error) {
+	if m.GetActivityTimelineFunc != nil {
+		return m.GetActivityTimelineFunc(ctx, userID)
+	}
+	return nil, nil
+}
+
+func (m *MockAuthService) ListUsers(ctx context.Context, page, limit int) ([]*model.UserResponse, int64, error) {
+	if m.ListUsersFunc != nil {
+		return m.ListUsersFunc(ctx, page, limit)
+	}
+	return nil, 0, nil
+}
+
 func TestAuthHandler_Register_Success(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	mockSvc := &MockAuthService{
-		RegisterFunc: func(ctx context.Context, req *model.RegisterRequest) (*model.UserResponse, error) {
+		RegisterFunc: func(ctx context.Context, req *model.RegisterRequest, ip string) (*model.UserResponse, error) {
 			return &model.UserResponse{
 				ID:        "66e85293f0b001a1a1a1a1a1",
 				Name:      req.Name,
@@ -81,7 +121,7 @@ func TestAuthHandler_Register_Success(t *testing.T) {
 func TestAuthHandler_Register_DuplicateEmail(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	mockSvc := &MockAuthService{
-		RegisterFunc: func(ctx context.Context, req *model.RegisterRequest) (*model.UserResponse, error) {
+		RegisterFunc: func(ctx context.Context, req *model.RegisterRequest, ip string) (*model.UserResponse, error) {
 			return nil, service.ErrEmailAlreadyExists
 		},
 	}
@@ -110,7 +150,7 @@ func TestAuthHandler_Register_DuplicateEmail(t *testing.T) {
 func TestAuthHandler_Login_InvalidCredentials(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	mockSvc := &MockAuthService{
-		LoginFunc: func(ctx context.Context, req *model.LoginRequest) (*model.AuthResponse, error) {
+		LoginFunc: func(ctx context.Context, req *model.LoginRequest, ip string) (*model.AuthResponse, error) {
 			return nil, service.ErrInvalidCredentials
 		},
 	}
@@ -138,7 +178,7 @@ func TestAuthHandler_Login_InvalidCredentials(t *testing.T) {
 func TestAuthHandler_Login_Success(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	mockSvc := &MockAuthService{
-		LoginFunc: func(ctx context.Context, req *model.LoginRequest) (*model.AuthResponse, error) {
+		LoginFunc: func(ctx context.Context, req *model.LoginRequest, ip string) (*model.AuthResponse, error) {
 			return &model.AuthResponse{
 				Token: "jwt-token-xyz",
 				User: &model.UserResponse{

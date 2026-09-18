@@ -17,8 +17,8 @@ export const Pagination = ({ page, totalPages, onPageChange }) => {
         Previous
       </Button>
 
-      <span className="text-xs font-semibold text-slate-400 px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-800">
-        Page <span className="text-emerald-400 font-bold">{page}</span> of {totalPages}
+      <span className="text-xs font-bold text-slate-700 dark:text-slate-300 px-3.5 py-1.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm">
+        Page <span className="text-emerald-600 dark:text-emerald-400 font-black">{page}</span> of {totalPages}
       </span>
 
       <Button

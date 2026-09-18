@@ -30,6 +30,7 @@ func (h *PollHandler) Create(c *gin.Context) {
 
 	userID, _ := userIDVal.(string)
 	userEmail, _ := userEmailVal.(string)
+	clientIP := c.ClientIP()
 
 	var req model.CreatePollRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -40,7 +41,7 @@ func (h *PollHandler) Create(c *gin.Context) {
 		return
 	}
 
-	pollResponse, err := h.pollService.CreatePoll(c.Request.Context(), userID, userEmail, &req)
+	pollResponse, err := h.pollService.CreatePoll(c.Request.Context(), userID, userEmail, &req, clientIP)
 	if err != nil {
 		switch {
 		case errors.Is(err, service.ErrInvalidOptions), errors.Is(err, service.ErrInvalidExpiration):
@@ -59,13 +60,27 @@ func (h *PollHandler) Create(c *gin.Context) {
 	})
 }
 
-// List handles listing polls with pagination and optional status filter
+// List handles listing polls with pagination, search, category, status, and sorting filters
 func (h *PollHandler) List(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
 	status := c.Query("status")
+	category := c.Query("category")
+	search := c.Query("search")
+	sortBy := c.Query("sort_by")
+	creatorID := c.Query("creator_id")
 
-	result, err := h.pollService.ListPolls(c.Request.Context(), page, limit, status)
+	filter := model.PollFilter{
+		Search:    search,
+		Category:  category,
+		Status:    status,
+		CreatorID: creatorID,
+		SortBy:    sortBy,
+		Page:      page,
+		Limit:     limit,
+	}
+
+	result, err := h.pollService.ListPollsWithFilter(c.Request.Context(), filter)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": "Failed to list polls",
@@ -100,10 +115,13 @@ func (h *PollHandler) GetByID(c *gin.Context) {
 	})
 }
 
-// Update handles updating a poll's question or status by its creator
+// Update handles updating a poll's question, category, or status
 func (h *PollHandler) Update(c *gin.Context) {
 	userIDVal, _ := c.Get("userId")
 	userID, _ := userIDVal.(string)
+	userRoleVal, _ := c.Get("userRole")
+	userRole, _ := userRoleVal.(model.UserRole)
+	clientIP := c.ClientIP()
 	pollID := c.Param("id")
 
 	var req model.UpdatePollRequest
@@ -115,7 +133,7 @@ func (h *PollHandler) Update(c *gin.Context) {
 		return
 	}
 
-	pollResponse, err := h.pollService.UpdatePoll(c.Request.Context(), userID, pollID, &req)
+	pollResponse, err := h.pollService.UpdatePoll(c.Request.Context(), userID, userRole, pollID, &req, clientIP)
 	if err != nil {
 		switch {
 		case errors.Is(err, service.ErrInvalidPollID):
@@ -136,13 +154,16 @@ func (h *PollHandler) Update(c *gin.Context) {
 	})
 }
 
-// Delete handles deleting a poll by its creator
+// Delete handles deleting a poll by creator or admin
 func (h *PollHandler) Delete(c *gin.Context) {
 	userIDVal, _ := c.Get("userId")
 	userID, _ := userIDVal.(string)
+	userRoleVal, _ := c.Get("userRole")
+	userRole, _ := userRoleVal.(model.UserRole)
+	clientIP := c.ClientIP()
 	pollID := c.Param("id")
 
-	err := h.pollService.DeletePoll(c.Request.Context(), userID, pollID)
+	err := h.pollService.DeletePoll(c.Request.Context(), userID, userRole, pollID, clientIP)
 	if err != nil {
 		switch {
 		case errors.Is(err, service.ErrInvalidPollID):
@@ -159,5 +180,34 @@ func (h *PollHandler) Delete(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Poll deleted successfully",
+	})
+}
+
+// Clone handles duplicating an existing poll for the authenticated user
+func (h *PollHandler) Clone(c *gin.Context) {
+	userIDVal, _ := c.Get("userId")
+	userEmailVal, _ := c.Get("userEmail")
+
+	userID, _ := userIDVal.(string)
+	userEmail, _ := userEmailVal.(string)
+	clientIP := c.ClientIP()
+	pollID := c.Param("id")
+
+	clonedPoll, err := h.pollService.ClonePoll(c.Request.Context(), userID, userEmail, pollID, clientIP)
+	if err != nil {
+		switch {
+		case errors.Is(err, service.ErrInvalidPollID):
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		case errors.Is(err, service.ErrPollNotFound):
+			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		default:
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to duplicate poll"})
+		}
+		return
+	}
+
+	c.JSON(http.StatusCreated, gin.H{
+		"message": "Poll cloned successfully",
+		"data":    clonedPoll,
 	})
 }

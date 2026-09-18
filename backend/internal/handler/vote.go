@@ -34,6 +34,7 @@ func (h *VoteHandler) CastVote(c *gin.Context) {
 	}
 	userID, _ := userIDVal.(string)
 	pollID := c.Param("id")
+	clientIP := c.ClientIP()
 
 	var req model.CastVoteRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -44,7 +45,7 @@ func (h *VoteHandler) CastVote(c *gin.Context) {
 		return
 	}
 
-	err := h.voteService.CastVote(c.Request.Context(), userID, pollID, &req)
+	err := h.voteService.CastVote(c.Request.Context(), userID, pollID, &req, clientIP)
 	if err != nil {
 		switch {
 		case errors.Is(err, service.ErrInvalidPollID):

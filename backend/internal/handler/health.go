@@ -65,3 +65,32 @@ func (h *HealthHandler) Check(c *gin.Context) {
 		"redis":    redisStatus,
 	})
 }
+
+// CheckMongo checks and returns the MongoDB connection health
+func (h *HealthHandler) CheckMongo(c *gin.Context) {
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 2*time.Second)
+	defer cancel()
+
+	if h.db != nil {
+		if err := h.db.Ping(ctx); err == nil {
+			c.JSON(http.StatusOK, gin.H{"status": "connected", "service": "mongodb"})
+			return
+		}
+	}
+	c.JSON(http.StatusServiceUnavailable, gin.H{"status": "disconnected", "service": "mongodb"})
+}
+
+// CheckRedis checks and returns the Redis connection health
+func (h *HealthHandler) CheckRedis(c *gin.Context) {
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 2*time.Second)
+	defer cancel()
+
+	if h.redis != nil && h.redis.Client != nil {
+		if err := h.redis.Ping(ctx); err == nil {
+			c.JSON(http.StatusOK, gin.H{"status": "connected", "service": "redis"})
+			return
+		}
+	}
+	c.JSON(http.StatusOK, gin.H{"status": "disabled_or_unavailable", "service": "redis", "fallback": "mongodb_in_memory"})
+}
+

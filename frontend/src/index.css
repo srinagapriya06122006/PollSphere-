@@ -2,9 +2,112 @@
 @tailwind components;
 @tailwind utilities;
 
+:root,
+html.light,
+body.light,
+.light {
+  color-scheme: light;
+  --bg-primary: #f8fafc;
+  --bg-surface: #ffffff;
+  --bg-card: #ffffff;
+  --text-primary: #0f172a;
+  --text-secondary: #1e293b;
+  --text-muted: #475569;
+  --border-color: #cbd5e1;
+}
+
+html.dark,
+:root.dark,
+body.dark,
+.dark {
+  color-scheme: dark;
+  --bg-primary: #020617;
+  --bg-surface: #0f172a;
+  --bg-card: #1e293b;
+  --text-primary: #ffffff;
+  --text-secondary: #e2e8f0;
+  --text-muted: #94a3b8;
+  --border-color: #334155;
+}
+
+/* Force instant background and text switch across entire DOM tree */
+html.dark,
+html.dark body,
+html.dark #root,
+.dark,
+.dark body,
+.dark #root,
+.dark .app-layout {
+  background-color: #020617 !important;
+  color: #f8fafc !important;
+}
+
+html.light,
+html.light body,
+html.light #root,
+.light,
+.light body,
+.light #root,
+.light .app-layout {
+  background-color: #f8fafc !important;
+  color: #0f172a !important;
+}
+
+.app-layout {
+  background-color: var(--bg-primary) !important;
+  color: var(--text-primary) !important;
+  min-height: 100vh;
+}
+
 @layer base {
   body {
-    @apply font-sans bg-slate-950 text-slate-100 min-h-screen;
+    @apply font-sans min-h-screen font-semibold transition-colors duration-200 antialiased;
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* Universal high-contrast, bold typography rules across all pages */
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-black tracking-tight;
+    color: #0f172a;
+  }
+
+  html.dark h1, html.dark h2, html.dark h3, html.dark h4, html.dark h5, html.dark h6,
+  .dark h1, .dark h2, .dark h3, .dark h4, .dark h5, .dark h6 {
+    color: #ffffff !important;
+  }
+
+  p {
+    @apply font-bold;
+    color: #1e293b;
+  }
+
+  html.dark p, .dark p {
+    color: #cbd5e1 !important;
+  }
+
+  label {
+    @apply font-black tracking-wide;
+    color: #0f172a;
+  }
+
+  html.dark label, .dark label {
+    color: #f8fafc !important;
+  }
+
+  input, textarea, select {
+    @apply font-bold;
+  }
+
+  button {
+    @apply font-extrabold tracking-wide;
+  }
+
+  span {
+    @apply font-semibold;
   }
 }
 
@@ -15,22 +118,52 @@
 }
 
 ::-webkit-scrollbar-track {
-  background: #090d16;
+  background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #1e293b;
+  background: #94a3b8;
   border-radius: 4px;
 }
 
-::-webkit-scrollbar-thumb:hover {
+.dark ::-webkit-scrollbar-thumb,
+html.dark ::-webkit-scrollbar-thumb {
   background: #334155;
 }
 
-/* Glassmorphic card utility */
+::-webkit-scrollbar-thumb:hover {
+  background: #64748b;
+}
+
+.dark ::-webkit-scrollbar-thumb:hover,
+html.dark ::-webkit-scrollbar-thumb:hover {
+  background: #475569;
+}
+
+/* Glassmorphic / Card utility that supports light and dark modes */
 .glass-card {
-  background: rgba(30, 41, 59, 0.7);
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.06), 0 2px 4px -2px rgba(0, 0, 0, 0.06);
+}
+
+.dark .glass-card,
+html.dark .glass-card {
+  background: rgba(15, 23, 42, 0.95) !important;
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  box-shadow: none !important;
+}
+
+/* Header styling */
+header {
+  background: rgba(255, 255, 255, 0.95);
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.dark header,
+html.dark header {
+  background: rgba(2, 6, 23, 0.95) !important;
+  border-bottom: 1px solid #1e293b !important;
 }

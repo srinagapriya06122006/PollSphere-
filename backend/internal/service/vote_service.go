@@ -20,7 +20,6 @@ import (
 )
 
 const (
-	// PollResultsCacheTTL defines the duration poll results remain cached in Redis
 	PollResultsCacheTTL = 5 * time.Minute
 )
 
@@ -33,25 +32,39 @@ var (
 
 // VoteService defines business logic for voting and retrieving poll results
 type VoteService interface {
-	CastVote(ctx context.Context, userID, pollID string, req *model.CastVoteRequest) error
+	CastVote(ctx context.Context, userID, pollID string, req *model.CastVoteRequest, ip string) error
 	GetPollResults(ctx context.Context, pollID string, optionalUserID *string) (*model.PollResultsResponse, error)
 	SetHub(hub *ws.Hub)
 }
 
 type voteService struct {
-	voteRepo repository.VoteRepository
-	pollRepo repository.PollRepository
-	redis    *database.RedisClient
-	hub      *ws.Hub
+	voteRepo     repository.VoteRepository
+	pollRepo     repository.PollRepository
+	userRepo     repository.UserRepository
+	auditService AuditService
+	notifService NotificationService
+	redis        *database.RedisClient
+	hub          *ws.Hub
 }
 
-// NewVoteService creates an instance of VoteService with database and optional Redis cache
-func NewVoteService(voteRepo repository.VoteRepository, pollRepo repository.PollRepository, redis *database.RedisClient, hub *ws.Hub) VoteService {
+// NewVoteService creates an instance of VoteService with database, audit logging, notifications, and Redis caching
+func NewVoteService(
+	voteRepo repository.VoteRepository,
+	pollRepo repository.PollRepository,
+	userRepo repository.UserRepository,
+	auditService AuditService,
+	notifService NotificationService,
+	redis *database.RedisClient,
+	hub *ws.Hub,
+) VoteService {
 	return &voteService{
-		voteRepo: voteRepo,
-		pollRepo: pollRepo,
-		redis:    redis,
-		hub:      hub,
+		voteRepo:     voteRepo,
+		pollRepo:     pollRepo,
+		userRepo:     userRepo,
+		auditService: auditService,
+		notifService: notifService,
+		redis:        redis,
+		hub:          hub,
 	}
 }
 
@@ -60,13 +73,12 @@ func (s *voteService) SetHub(hub *ws.Hub) {
 	s.hub = hub
 }
 
-// getResultsCacheKey formats the Redis key for cached poll results
 func getResultsCacheKey(pollID string) string {
 	return fmt.Sprintf("poll:results:%s", pollID)
 }
 
-// CastVote validates poll state, records the vote, invalidates Redis cache, and broadcasts real-time update
-func (s *voteService) CastVote(ctx context.Context, userID, pollID string, req *model.CastVoteRequest) error {
+// CastVote validates poll state, records the vote, invalidates Redis cache, logs audit event, sends notification, and broadcasts update
+func (s *voteService) CastVote(ctx context.Context, userID, pollID string, req *model.CastVoteRequest, ip string) error {
 	userOID, err := bson.ObjectIDFromHex(userID)
 	if err != nil {
 		return ErrInvalidPollID
@@ -77,7 +89,6 @@ func (s *voteService) CastVote(ctx context.Context, userID, pollID string, req *
 		return ErrInvalidPollID
 	}
 
-	// 1. Verify poll exists
 	poll, err := s.pollRepo.FindByID(ctx, pollOID)
 	if err != nil {
 		return fmt.Errorf("failed to find poll: %w", err)
@@ -86,21 +97,20 @@ func (s *voteService) CastVote(ctx context.Context, userID, pollID string, req *
 		return ErrPollNotFound
 	}
 
-	// 2. Verify poll status is active
 	if poll.Status != model.PollStatusActive {
 		return ErrPollClosed
 	}
 
-	// 3. Verify poll has not expired
 	if poll.ExpiresAt != nil && poll.ExpiresAt.Before(time.Now().UTC()) {
 		return ErrPollExpired
 	}
 
-	// 4. Verify option belongs to the poll
+	var selectedOptionText string
 	optionFound := false
 	for _, opt := range poll.Options {
 		if opt.ID == req.OptionID {
 			optionFound = true
+			selectedOptionText = opt.Text
 			break
 		}
 	}
@@ -108,7 +118,6 @@ func (s *voteService) CastVote(ctx context.Context, userID, pollID string, req *
 		return ErrInvalidOption
 	}
 
-	// 5. Pre-check if user already voted (application level)
 	hasVoted, _, err := s.voteRepo.HasUserVoted(ctx, pollOID, userOID)
 	if err != nil {
 		return fmt.Errorf("failed to verify user voting status: %w", err)
@@ -117,7 +126,6 @@ func (s *voteService) CastVote(ctx context.Context, userID, pollID string, req *
 		return ErrAlreadyVoted
 	}
 
-	// 6. Record the vote in MongoDB (Unique compound index handles race conditions)
 	vote := &model.Vote{
 		PollID:   pollOID,
 		OptionID: req.OptionID,
@@ -131,31 +139,44 @@ func (s *voteService) CastVote(ctx context.Context, userID, pollID string, req *
 		return fmt.Errorf("failed to cast vote: %w", err)
 	}
 
-	// 7. Invalidate the Redis cache for this poll so subsequent queries get fresh results
-	if s.redis != nil {
-		cacheKey := getResultsCacheKey(pollID)
-		if err := s.redis.Del(ctx, cacheKey); err != nil {
-			slog.Warn("Failed to invalidate Redis cache on vote", "key", cacheKey, "error", err)
-		} else {
-			slog.Info("Redis cache invalidated for poll results", "pollId", pollID)
-		}
+	// Invalidate Redis cache for poll and analytics
+	if s.redis != nil && s.redis.IsEnabled() {
+		_ = s.redis.Del(ctx, getResultsCacheKey(pollID))
+		_ = s.redis.Del(ctx, "cache:analytics:overview")
 	}
 
-	// 8. Broadcast updated results to all connected WebSocket clients for this poll
+	// Record audit event
+	if s.auditService != nil {
+		s.auditService.Log(ctx, &userOID, "", model.AuditActionVoteCast, "poll", pollID, fmt.Sprintf("Voted for option: %s", selectedOptionText), ip)
+	}
+
+	// Send persistent notification to poll creator
+	if s.notifService != nil && poll.CreatorID != userOID {
+		s.notifService.SendNotification(
+			ctx,
+			poll.CreatorID,
+			"New Vote Received",
+			fmt.Sprintf("Someone voted for \"%s\" on your poll \"%s\".", selectedOptionText, poll.Question),
+			model.NotificationTypeVoteReceived,
+			fmt.Sprintf("/polls/%s", pollID),
+		)
+	}
+
+	// Broadcast real-time results via WebSockets
 	if s.hub != nil {
 		if updatedResults, err := s.GetPollResults(ctx, pollID, nil); err == nil {
 			s.hub.BroadcastToPoll(pollID, gin.H{
 				"type": "POLL_UPDATE",
 				"data": updatedResults,
 			})
-			slog.Info("Broadcasted real-time poll update via WebSocket / Redis PubSub", "pollId", pollID)
+			slog.Info("Broadcasted live poll update", "pollId", pollID)
 		}
 	}
 
 	return nil
 }
 
-// GetPollResults aggregates vote counts with Redis read-through caching and graceful fallback
+// GetPollResults aggregates vote counts with Redis caching
 func (s *voteService) GetPollResults(ctx context.Context, pollID string, optionalUserID *string) (*model.PollResultsResponse, error) {
 	pollOID, err := bson.ObjectIDFromHex(pollID)
 	if err != nil {
@@ -165,18 +186,15 @@ func (s *voteService) GetPollResults(ctx context.Context, pollID string, optiona
 	cacheKey := getResultsCacheKey(pollID)
 	var cachedResults *model.PollResultsResponse
 
-	// 1. Try reading from Redis Cache (Cache-Aside / Read-Through Pattern)
-	if s.redis != nil {
+	if s.redis != nil && s.redis.IsEnabled() {
 		if val, err := s.redis.Get(ctx, cacheKey); err == nil && val != "" {
 			var resp model.PollResultsResponse
 			if err := json.Unmarshal([]byte(val), &resp); err == nil {
 				cachedResults = &resp
-				slog.Info("Redis cache hit for poll results", "pollId", pollID)
 			}
 		}
 	}
 
-	// 2. If Cache Miss, fetch and calculate from MongoDB persistent source
 	if cachedResults == nil {
 		poll, err := s.pollRepo.FindByID(ctx, pollOID)
 		if err != nil {
@@ -207,27 +225,27 @@ func (s *voteService) GetPollResults(ctx context.Context, pollID string, optiona
 			})
 		}
 
+		cat := poll.Category
+		if cat == "" {
+			cat = model.CategoryGeneral
+		}
+
 		cachedResults = &model.PollResultsResponse{
 			PollID:     poll.ID.Hex(),
 			Question:   poll.Question,
 			Status:     poll.Status,
+			Category:   cat,
 			TotalVotes: totalVotes,
 			Results:    results,
 		}
 
-		// 3. Store aggregated results in Redis with TTL (Cache warming)
-		if s.redis != nil {
+		if s.redis != nil && s.redis.IsEnabled() {
 			if data, err := json.Marshal(cachedResults); err == nil {
-				if err := s.redis.Set(ctx, cacheKey, data, PollResultsCacheTTL); err != nil {
-					slog.Warn("Failed to cache poll results in Redis", "key", cacheKey, "error", err)
-				} else {
-					slog.Info("Poll results cached in Redis", "pollId", pollID, "ttl", PollResultsCacheTTL)
-				}
+				_ = s.redis.Set(ctx, cacheKey, string(data), PollResultsCacheTTL)
 			}
 		}
 	}
 
-	// 4. Attach user-specific vote info if authenticated user requested it (not cached globally)
 	finalResponse := *cachedResults
 	if optionalUserID != nil && *optionalUserID != "" {
 		if userOID, err := bson.ObjectIDFromHex(*optionalUserID); err == nil {

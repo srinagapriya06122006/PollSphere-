@@ -7,17 +7,25 @@ export const ProtectedRoute = ({ children }) => {
   const { isAuthenticated, loading } = useAuth()
   const location = useLocation()
 
+  // Prevent authentication flash/flicker while token is being verified
   if (loading) {
     return (
-      <div className="py-24">
+      <div className="py-24 flex items-center justify-center">
         <LoadingSpinner message="Verifying authentication credentials..." />
       </div>
     )
   }
 
+  // Strictly block unauthenticated visitors and redirect to login with return URL
   if (!isAuthenticated) {
-    // Redirect to login while preserving the attempted location for post-login return
-    return <Navigate to="/login" state={{ from: location }} replace />
+    const redirectPath = location.pathname + location.search
+    return (
+      <Navigate
+        to={`/login?redirect=${encodeURIComponent(redirectPath)}`}
+        state={{ from: location }}
+        replace
+      />
+    )
   }
 
   return children

@@ -16,7 +16,9 @@ export const Login = () => {
   const [error, setError] = useState(null)
 
   // Retrieve destination path if user was redirected here from a protected page
-  const fromPath = location.state?.from?.pathname || '/'
+  const searchParams = new URLSearchParams(location.search)
+  const redirectQuery = searchParams.get('redirect')
+  const fromPath = redirectQuery || location.state?.from?.pathname || '/'
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -33,6 +35,8 @@ export const Login = () => {
     }
   }
 
+  const isRedirected = Boolean(redirectQuery || location.state?.from)
+
   return (
     <div className="max-w-md mx-auto py-12">
       <Card className="p-8">
@@ -44,8 +48,8 @@ export const Login = () => {
           <p className="text-xs text-slate-400">Sign in to your account to create and manage live polls</p>
         </div>
 
-        {location.state?.from && (
-          <div className="mb-6 p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-300 text-xs text-center">
+        {isRedirected && (
+          <div className="mb-6 p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-300 text-xs text-center font-medium">
             Please sign in to access that page
           </div>
         )}
@@ -85,7 +89,10 @@ export const Login = () => {
 
         <p className="text-center text-xs text-slate-400 mt-6">
           Don't have an account?{' '}
-          <Link to="/register" className="text-emerald-400 hover:underline font-semibold">
+          <Link
+            to={redirectQuery ? `/register?redirect=${encodeURIComponent(redirectQuery)}` : '/register'}
+            className="text-emerald-400 hover:underline font-semibold"
+          >
             Create Account
           </Link>
         </p>

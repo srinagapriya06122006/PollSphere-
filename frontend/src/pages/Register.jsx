@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { UserPlus, AlertCircle } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import Card from '../components/common/Card'
@@ -8,10 +8,16 @@ import Button from '../components/common/Button'
 
 export const Register = () => {
   const navigate = useNavigate()
+  const location = useLocation()
   const { register, login } = useAuth()
   const [formData, setFormData] = useState({ name: '', email: '', password: '' })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
+
+  // Retrieve destination path if user was redirected here
+  const searchParams = new URLSearchParams(location.search)
+  const redirectQuery = searchParams.get('redirect')
+  const fromPath = redirectQuery || location.state?.from?.pathname || '/'
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -22,7 +28,7 @@ export const Register = () => {
       await register(formData.name, formData.email, formData.password)
       // Auto login upon successful registration
       await login(formData.email, formData.password)
-      navigate('/')
+      navigate(fromPath, { replace: true })
     } catch (err) {
       setError(err.customMessage || 'Failed to register account')
     } finally {
@@ -87,7 +93,10 @@ export const Register = () => {
 
         <p className="text-center text-xs text-slate-400 mt-6">
           Already have an account?{' '}
-          <Link to="/login" className="text-emerald-400 hover:underline font-semibold">
+          <Link
+            to={redirectQuery ? `/login?redirect=${encodeURIComponent(redirectQuery)}` : '/login'}
+            className="text-emerald-400 hover:underline font-semibold"
+          >
             Sign In
           </Link>
         </p>

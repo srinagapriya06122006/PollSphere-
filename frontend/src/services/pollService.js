@@ -1,13 +1,24 @@
 import apiClient from '../api/client'
 
 export const pollService = {
-  // List polls with pagination and optional status filter
-  getPolls: async (page = 1, limit = 9, status = '') => {
-    let url = `/polls?page=${page}&limit=${limit}`
-    if (status) {
-      url += `&status=${status}`
+  // List polls with pagination, search, category, status, and sorting filters
+  getPolls: async (page = 1, limit = 9, filters = {}) => {
+    const params = new URLSearchParams({
+      page: page.toString(),
+      limit: limit.toString(),
+    })
+
+    if (typeof filters === 'string') {
+      if (filters) params.append('status', filters)
+    } else {
+      if (filters.status) params.append('status', filters.status)
+      if (filters.category && filters.category !== 'all') params.append('category', filters.category)
+      if (filters.search) params.append('search', filters.search)
+      if (filters.sortBy) params.append('sort_by', filters.sortBy)
+      if (filters.creatorId) params.append('creator_id', filters.creatorId)
     }
-    const response = await apiClient.get(url)
+
+    const response = await apiClient.get(`/polls?${params.toString()}`)
     return response.data?.data
   },
 
@@ -23,16 +34,22 @@ export const pollService = {
     return response.data?.data
   },
 
-  // Update a poll (Authenticated - Owner only)
+  // Update a poll (Authenticated - Owner or Admin)
   updatePoll: async (id, updateData) => {
     const response = await apiClient.put(`/polls/${id}`, updateData)
     return response.data?.data
   },
 
-  // Delete a poll (Authenticated - Owner only)
+  // Delete a poll (Authenticated - Owner or Admin)
   deletePoll: async (id) => {
     const response = await apiClient.delete(`/polls/${id}`)
     return response.data
+  },
+
+  // Clone / Duplicate a poll (Authenticated)
+  clonePoll: async (id) => {
+    const response = await apiClient.post(`/polls/${id}/clone`)
+    return response.data?.data
   },
 }
 

@@ -36,7 +36,7 @@ func main() {
 		"redis_enabled", cfg.RedisEnabled,
 	)
 
-	// Root context for background processes (Hub, Redis subscriptions)
+	// Root context for background processes (Hub, Redis subscriptions, Schedulers)
 	appCtx, appCancel := context.WithCancel(context.Background())
 	defer appCancel()
 
@@ -61,7 +61,7 @@ func main() {
 	go hub.Run(appCtx)
 
 	// Initialize Repositories and create indexes
-	initCtx, initCancel := context.WithTimeout(context.Background(), 10*time.Second)
+	initCtx, initCancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer initCancel()
 
 	userRepo := repository.NewUserRepository(mongoDB.Database)
@@ -82,28 +82,74 @@ func main() {
 		os.Exit(1)
 	}
 
+	auditRepo := repository.NewAuditRepository(mongoDB.Database)
+	if err := auditRepo.EnsureIndexes(initCtx); err != nil {
+		slog.Error("Failed to initialize MongoDB audit indexes", "error", err)
+		os.Exit(1)
+	}
+
+	analyticsRepo := repository.NewAnalyticsRepository(mongoDB.Database)
+	commentRepo := repository.NewCommentRepository(mongoDB.Database)
+
+	notifRepo := repository.NewNotificationRepository(mongoDB.Database)
+	if err := notifRepo.EnsureIndexes(initCtx); err != nil {
+		slog.Error("Failed to initialize MongoDB notification indexes", "error", err)
+		os.Exit(1)
+	}
+
 	// Initialize Services
 	jwtService := service.NewJWTService(cfg)
-	authService := service.NewAuthService(userRepo, jwtService)
-	pollService := service.NewPollService(pollRepo, userRepo)
-	voteService := service.NewVoteService(voteRepo, pollRepo, redisClient, hub)
+	auditService := service.NewAuditService(auditRepo)
+	notifService := service.NewNotificationService(notifRepo)
+	commentService := service.NewCommentService(commentRepo, pollRepo)
+	authService := service.NewAuthService(userRepo, pollRepo, voteRepo, jwtService, auditService)
+	pollService := service.NewPollService(pollRepo, voteRepo, userRepo, auditService, notifService, redisClient)
+	voteService := service.NewVoteService(voteRepo, pollRepo, userRepo, auditService, notifService, redisClient, hub)
+	analyticsService := service.NewAnalyticsService(analyticsRepo, pollRepo, voteRepo, userRepo, redisClient)
+	exportService := service.NewExportService(pollService, voteService)
+	aiService := service.NewAIService(pollService, voteService)
+
+	// Start Background Poll Expiry Scheduler (runs every 15 seconds)
+	schedulerService := service.NewSchedulerService(pollRepo, pollService, auditService, notifService, hub, 15*time.Second)
+	schedulerService.Start(appCtx)
 
 	// Initialize Handlers
 	authHandler := handler.NewAuthHandler(authService)
 	pollHandler := handler.NewPollHandler(pollService)
 	voteHandler := handler.NewVoteHandler(voteService, jwtService)
 	wsHandler := handler.NewWSHandler(hub, jwtService, voteService, pollService)
+	analyticsHandler := handler.NewAnalyticsHandler(analyticsService)
+	exportHandler := handler.NewExportHandler(exportService)
+	aiHandler := handler.NewAIHandler(aiService)
+	adminHandler := handler.NewAdminHandler(auditService, authService)
+	notificationHandler := handler.NewNotificationHandler(notifService)
+	commentHandler := handler.NewCommentHandler(commentService)
 
-	// Setup Gin router with database, cache, handlers, and middlewares
-	r := router.SetupRouter(cfg, mongoDB, redisClient, authHandler, pollHandler, voteHandler, wsHandler, jwtService)
+	// Setup Gin router with database, cache, handlers, rate limiting, and middlewares
+	r := router.SetupRouter(
+		cfg,
+		mongoDB,
+		redisClient,
+		authHandler,
+		pollHandler,
+		voteHandler,
+		wsHandler,
+		analyticsHandler,
+		exportHandler,
+		aiHandler,
+		adminHandler,
+		notificationHandler,
+		commentHandler,
+		jwtService,
+	)
 
 	// Configure HTTP Server
 	serverAddr := fmt.Sprintf(":%s", cfg.Port)
 	srv := &http.Server{
 		Addr:         serverAddr,
 		Handler:      r,
-		ReadTimeout:  10 * time.Second,
-		WriteTimeout: 10 * time.Second,
+		ReadTimeout:  15 * time.Second,
+		WriteTimeout: 15 * time.Second,
 		IdleTimeout:  60 * time.Second,
 	}
 
@@ -122,10 +168,10 @@ func main() {
 	sig := <-quit
 	slog.Info("Shutdown signal received", "signal", sig.String())
 
-	// Stop background Hub and Redis PubSub listeners
+	// Stop background Hub, Scheduler, and Redis PubSub listeners
 	appCancel()
 
-	// Set a 5-second deadline context for in-flight HTTP requests to complete
+	// Set deadline context for in-flight requests
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 

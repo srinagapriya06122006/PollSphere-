@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"strings"
 
+	"guvi-backend/internal/model"
 	"guvi-backend/internal/service"
 
 	"github.com/gin-gonic/gin"
@@ -48,9 +49,15 @@ func AuthMiddleware(jwtService service.JWTService) gin.HandlerFunc {
 			return
 		}
 
+		role := claims.Role
+		if role == "" {
+			role = model.RoleUser
+		}
+
 		// Store authenticated user context for downstream handlers
 		c.Set("userId", claims.UserID)
 		c.Set("userEmail", claims.Email)
+		c.Set("userRole", role)
 
 		c.Next()
 	}

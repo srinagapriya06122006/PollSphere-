@@ -20,16 +20,26 @@ import (
 
 // MockPollService implements service.PollService
 type MockPollService struct {
-	CreatePollFunc  func(ctx context.Context, userID, userEmail string, req *model.CreatePollRequest) (*model.PollResponse, error)
-	GetPollByIDFunc func(ctx context.Context, pollID string) (*model.PollResponse, error)
-	ListPollsFunc   func(ctx context.Context, page, limit int, status string) (*model.PollListResponse, error)
-	UpdatePollFunc  func(ctx context.Context, userID, pollID string, req *model.UpdatePollRequest) (*model.PollResponse, error)
-	DeletePollFunc  func(ctx context.Context, userID, pollID string) error
+	CreatePollFunc          func(ctx context.Context, userID, userEmail string, req *model.CreatePollRequest, ip string) (*model.PollResponse, error)
+	ClonePollFunc           func(ctx context.Context, userID, userEmail, pollID, ip string) (*model.PollResponse, error)
+	GetPollByIDFunc         func(ctx context.Context, pollID string) (*model.PollResponse, error)
+	ListPollsFunc           func(ctx context.Context, page, limit int, status string) (*model.PollListResponse, error)
+	ListPollsWithFilterFunc func(ctx context.Context, filter model.PollFilter) (*model.PollListResponse, error)
+	UpdatePollFunc          func(ctx context.Context, userID string, userRole model.UserRole, pollID string, req *model.UpdatePollRequest, ip string) (*model.PollResponse, error)
+	DeletePollFunc          func(ctx context.Context, userID string, userRole model.UserRole, pollID string, ip string) error
+	InvalidatePollCacheFunc func(ctx context.Context, pollID string)
 }
 
-func (m *MockPollService) CreatePoll(ctx context.Context, userID, userEmail string, req *model.CreatePollRequest) (*model.PollResponse, error) {
+func (m *MockPollService) CreatePoll(ctx context.Context, userID, userEmail string, req *model.CreatePollRequest, ip string) (*model.PollResponse, error) {
 	if m.CreatePollFunc != nil {
-		return m.CreatePollFunc(ctx, userID, userEmail, req)
+		return m.CreatePollFunc(ctx, userID, userEmail, req, ip)
+	}
+	return nil, nil
+}
+
+func (m *MockPollService) ClonePoll(ctx context.Context, userID, userEmail, pollID, ip string) (*model.PollResponse, error) {
+	if m.ClonePollFunc != nil {
+		return m.ClonePollFunc(ctx, userID, userEmail, pollID, ip)
 	}
 	return nil, nil
 }
@@ -48,29 +58,42 @@ func (m *MockPollService) ListPolls(ctx context.Context, page, limit int, status
 	return nil, nil
 }
 
-func (m *MockPollService) UpdatePoll(ctx context.Context, userID, pollID string, req *model.UpdatePollRequest) (*model.PollResponse, error) {
-	if m.UpdatePollFunc != nil {
-		return m.UpdatePollFunc(ctx, userID, pollID, req)
+func (m *MockPollService) ListPollsWithFilter(ctx context.Context, filter model.PollFilter) (*model.PollListResponse, error) {
+	if m.ListPollsWithFilterFunc != nil {
+		return m.ListPollsWithFilterFunc(ctx, filter)
 	}
 	return nil, nil
 }
 
-func (m *MockPollService) DeletePoll(ctx context.Context, userID, pollID string) error {
+func (m *MockPollService) UpdatePoll(ctx context.Context, userID string, userRole model.UserRole, pollID string, req *model.UpdatePollRequest, ip string) (*model.PollResponse, error) {
+	if m.UpdatePollFunc != nil {
+		return m.UpdatePollFunc(ctx, userID, userRole, pollID, req, ip)
+	}
+	return nil, nil
+}
+
+func (m *MockPollService) DeletePoll(ctx context.Context, userID string, userRole model.UserRole, pollID string, ip string) error {
 	if m.DeletePollFunc != nil {
-		return m.DeletePollFunc(ctx, userID, pollID)
+		return m.DeletePollFunc(ctx, userID, userRole, pollID, ip)
 	}
 	return nil
 }
 
+func (m *MockPollService) InvalidatePollCache(ctx context.Context, pollID string) {
+	if m.InvalidatePollCacheFunc != nil {
+		m.InvalidatePollCacheFunc(ctx, pollID)
+	}
+}
+
 // MockVoteService implements service.VoteService
 type MockVoteService struct {
-	CastVoteFunc       func(ctx context.Context, userID, pollID string, req *model.CastVoteRequest) error
+	CastVoteFunc       func(ctx context.Context, userID, pollID string, req *model.CastVoteRequest, ip string) error
 	GetPollResultsFunc func(ctx context.Context, pollID string, optionalUserID *string) (*model.PollResultsResponse, error)
 }
 
-func (m *MockVoteService) CastVote(ctx context.Context, userID, pollID string, req *model.CastVoteRequest) error {
+func (m *MockVoteService) CastVote(ctx context.Context, userID, pollID string, req *model.CastVoteRequest, ip string) error {
 	if m.CastVoteFunc != nil {
-		return m.CastVoteFunc(ctx, userID, pollID, req)
+		return m.CastVoteFunc(ctx, userID, pollID, req, ip)
 	}
 	return nil
 }
@@ -87,7 +110,7 @@ func (m *MockVoteService) SetHub(hub *ws.Hub) {}
 func TestPollHandler_Create_Success(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	mockPollSvc := &MockPollService{
-		CreatePollFunc: func(ctx context.Context, userID, userEmail string, req *model.CreatePollRequest) (*model.PollResponse, error) {
+		CreatePollFunc: func(ctx context.Context, userID, userEmail string, req *model.CreatePollRequest, ip string) (*model.PollResponse, error) {
 			return &model.PollResponse{
 				ID:          "66e85293f0b001a1a1a1a1b1",
 				Question:    req.Question,
@@ -147,7 +170,7 @@ func TestPollHandler_GetByID_NotFound(t *testing.T) {
 func TestVoteHandler_CastVote_AlreadyVoted(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	mockVoteSvc := &MockVoteService{
-		CastVoteFunc: func(ctx context.Context, userID, pollID string, req *model.CastVoteRequest) error {
+		CastVoteFunc: func(ctx context.Context, userID, pollID string, req *model.CastVoteRequest, ip string) error {
 			return service.ErrAlreadyVoted
 		},
 	}
@@ -178,7 +201,7 @@ func TestVoteHandler_CastVote_AlreadyVoted(t *testing.T) {
 func TestVoteHandler_CastVote_ClosedPoll(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	mockVoteSvc := &MockVoteService{
-		CastVoteFunc: func(ctx context.Context, userID, pollID string, req *model.CastVoteRequest) error {
+		CastVoteFunc: func(ctx context.Context, userID, pollID string, req *model.CastVoteRequest, ip string) error {
 			return service.ErrPollClosed
 		},
 	}

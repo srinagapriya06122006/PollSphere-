@@ -33,7 +33,20 @@ type PollResultsResponse struct {
 	PollID            string         `json:"pollId"`
 	Question          string         `json:"question"`
 	Status            PollStatus     `json:"status"`
+	Category          PollCategory   `json:"category,omitempty"`
 	TotalVotes        int64          `json:"totalVotes"`
 	Results           []OptionResult `json:"results"`
 	UserVotedOptionID *string        `json:"userVotedOptionId,omitempty"`
+}
+
+// UserVoteHistoryItem represents a past vote cast by a user along with poll details
+type UserVoteHistoryItem struct {
+	VoteID     string       `json:"voteId"`
+	PollID     string       `json:"pollId"`
+	Question   string       `json:"question"`
+	Category   PollCategory `json:"category"`
+	OptionID   string       `json:"optionId"`
+	OptionText string       `json:"optionText"`
+	PollStatus PollStatus   `json:"pollStatus"`
+	VotedAt    time.Time    `json:"votedAt"`
 }
