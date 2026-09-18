@@ -3,7 +3,7 @@
 # ==========================================
 
 # Stage 1: Build static Go binary
-FROM golang:1.24-alpine AS builder
+FROM golang:alpine AS builder
 
 # Install required build tools and CA certificates
 RUN apk add --no-cache git ca-certificates tzdata
