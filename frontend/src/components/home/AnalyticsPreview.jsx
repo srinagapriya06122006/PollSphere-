@@ -1,10 +1,13 @@
 import React from 'react'
 import { Link } from 'react-router-dom'
 import { BarChart3, TrendingUp, ArrowRight, CheckCircle2, PieChart, Calendar, Activity } from 'lucide-react'
+import { useAuth } from '../../context/AuthContext'
 import Card from '../common/Card'
 import Button from '../common/Button'
 
 export const AnalyticsPreview = () => {
+  const { isAuthenticated } = useAuth()
+
   return (
     <section className="w-full py-12 sm:py-16 bg-slate-50/50 dark:bg-slate-900/30 border-y border-slate-200/60 dark:border-slate-800/60">
       <div className="max-w-[1500px] w-full mx-auto px-4 sm:px-8 lg:px-12">
@@ -40,7 +43,7 @@ export const AnalyticsPreview = () => {
             </ul>
 
             <div className="pt-2">
-              <Link to="/analytics">
+              <Link to={isAuthenticated ? '/analytics' : '/login?redirect=/analytics'}>
                 <Button variant="primary" size="md" className="flex items-center gap-2 mx-auto lg:mx-0 font-bold shadow-lg shadow-purple-600/20">
                   <span>Explore Analytics</span>
                   <ArrowRight className="w-4 h-4" />
@@ -94,8 +97,8 @@ export const AnalyticsPreview = () => {
                   <div className="flex justify-center mb-1 text-amber-500">
                     <BarChart3 className="w-4 h-4" />
                   </div>
-                  <span className="text-[10px] font-bold uppercase text-slate-400 block">Active Polls</span>
-                  <span className="text-xs sm:text-sm font-black text-slate-900 dark:text-slate-100">Open Now</span>
+                  <span className="text-[10px] font-bold uppercase text-slate-400 block">Poll Status</span>
+                  <span className="text-xs sm:text-sm font-black text-slate-900 dark:text-slate-100">Active Polls</span>
                 </div>
               </div>
 

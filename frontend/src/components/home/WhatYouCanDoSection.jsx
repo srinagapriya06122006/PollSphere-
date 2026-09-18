@@ -35,7 +35,7 @@ export const WhatYouCanDoSection = () => {
   ]
 
   return (
-    <section className="w-full py-12 sm:py-16">
+    <section id="features" className="w-full py-12 sm:py-16">
       <div className="max-w-[1500px] w-full mx-auto px-4 sm:px-8 lg:px-12">
         <div className="text-center max-w-2xl mx-auto mb-10 space-y-2">
           <span className="text-xs font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">

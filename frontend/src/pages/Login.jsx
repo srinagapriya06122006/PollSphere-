@@ -93,7 +93,7 @@ export const Login = () => {
             to={redirectQuery ? `/register?redirect=${encodeURIComponent(redirectQuery)}` : '/register'}
             className="text-emerald-400 hover:underline font-semibold"
           >
-            Create Account
+            Sign Up
           </Link>
         </p>
       </Card>

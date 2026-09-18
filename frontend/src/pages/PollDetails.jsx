@@ -347,7 +347,7 @@ export const PollDetails = () => {
 
           <div>
             {!isAuthenticated ? (
-              <Link to="/login" state={{ from: { pathname: `/polls/${id}` } }}>
+              <Link to={`/login?redirect=${encodeURIComponent(`/polls/${id}`)}`} state={{ from: { pathname: `/polls/${id}` } }}>
                 <Button variant="primary" size="md">
                   Sign In to Vote
                 </Button>

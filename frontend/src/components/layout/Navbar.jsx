@@ -87,11 +87,8 @@ export const Navbar = () => {
     setMobileMenuOpen(false)
     if (location.pathname !== '/') {
       navigate(`/#${anchorId}`)
-      setTimeout(() => {
-        const el = document.getElementById(anchorId)
-        if (el) el.scrollIntoView({ behavior: 'smooth' })
-      }, 100)
     } else {
+      window.history.pushState(null, '', `/#${anchorId}`)
       const el = document.getElementById(anchorId)
       if (el) el.scrollIntoView({ behavior: 'smooth' })
     }
@@ -355,7 +352,7 @@ export const Navbar = () => {
                   Sign In
                 </Button>
               </Link>
-              <Link to="/register?redirect=/create-poll">
+              <Link to="/login?redirect=/create-poll">
                 <Button variant="primary" size="sm">
                   <PlusCircle className="w-3.5 h-3.5 mr-1" />
                   Create a Poll
@@ -504,7 +501,7 @@ export const Navbar = () => {
                     Sign In
                   </Button>
                 </Link>
-                <Link to="/register?redirect=/create-poll">
+                <Link to="/login?redirect=/create-poll">
                   <Button variant="primary" size="sm" className="w-full justify-center">
                     <PlusCircle className="w-3.5 h-3.5 mr-1" />
                     Create a Poll

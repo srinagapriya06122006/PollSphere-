@@ -1,8 +1,11 @@
 import React from 'react'
 import { Link } from 'react-router-dom'
 import { BarChart3 } from 'lucide-react'
+import { useAuth } from '../../context/AuthContext'
 
 export const Footer = () => {
+  const { isAuthenticated } = useAuth()
+
   return (
     <footer className="mt-auto border-t border-slate-200 dark:border-slate-800/80 bg-white/95 dark:bg-slate-950/90 text-slate-500 dark:text-slate-400 text-xs transition-colors duration-200">
       <div className="max-w-[1500px] w-full mx-auto px-4 sm:px-8 lg:px-12 py-8">
@@ -32,12 +35,18 @@ export const Footer = () => {
                 </Link>
               </li>
               <li>
-                <Link to="/analytics" className="hover:text-indigo-600 dark:hover:text-indigo-400 transition font-medium">
+                <Link
+                  to={isAuthenticated ? '/analytics' : '/login?redirect=/analytics'}
+                  className="hover:text-indigo-600 dark:hover:text-indigo-400 transition font-medium"
+                >
                   Analytics
                 </Link>
               </li>
               <li>
-                <Link to="/create-poll" className="hover:text-indigo-600 dark:hover:text-indigo-400 transition font-medium">
+                <Link
+                  to={isAuthenticated ? '/create-poll' : '/login?redirect=/create-poll'}
+                  className="hover:text-indigo-600 dark:hover:text-indigo-400 transition font-medium"
+                >
                   Create Poll
                 </Link>
               </li>
