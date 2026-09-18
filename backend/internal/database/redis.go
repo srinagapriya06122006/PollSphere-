@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"strings"
 	"time"
 
 	"guvi-backend/internal/config"
@@ -25,15 +26,27 @@ func ConnectRedis(cfg *config.Config) (*RedisClient, error) {
 
 	slog.Info("Connecting to Redis...", "addr", cfg.RedisAddr, "db", cfg.RedisDB)
 
-	rdb := redis.NewClient(&redis.Options{
-		Addr:         cfg.RedisAddr,
-		Password:     cfg.RedisPassword,
-		DB:           cfg.RedisDB,
-		DialTimeout:  5 * time.Second,
-		ReadTimeout:  3 * time.Second,
-		WriteTimeout: 3 * time.Second,
-		PoolSize:     10,
-	})
+	var rdb *redis.Client
+	if strings.HasPrefix(cfg.RedisAddr, "redis://") || strings.HasPrefix(cfg.RedisAddr, "rediss://") {
+		opt, err := redis.ParseURL(cfg.RedisAddr)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse redis url: %w", err)
+		}
+		if cfg.RedisPassword != "" && opt.Password == "" {
+			opt.Password = cfg.RedisPassword
+		}
+		rdb = redis.NewClient(opt)
+	} else {
+		rdb = redis.NewClient(&redis.Options{
+			Addr:         cfg.RedisAddr,
+			Password:     cfg.RedisPassword,
+			DB:           cfg.RedisDB,
+			DialTimeout:  5 * time.Second,
+			ReadTimeout:  3 * time.Second,
+			WriteTimeout: 3 * time.Second,
+			PoolSize:     10,
+		})
+	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
