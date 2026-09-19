@@ -1,388 +1,4 @@
-# 🌐 PollSphere — Enterprise Real-Time Polling & Analytics Platform
-
-## 📖 Overview
-
-**PollSphere** is a high-concurrency, enterprise-grade polling, voting, and real-time analytics platform. Engineered with a **Go (Gin Clean Architecture)** backend and a **React 18 (Vite + Tailwind CSS + Recharts)** frontend, PollSphere delivers sub-millisecond voting feedback, live multi-client WebSocket synchronization via Redis Pub/Sub, robust dual authentication (Strict Gmail validation & Google OAuth 2.0), automated poll expiration, and AI-driven poll insights.
-
----
-
-## 📑 Table of Contents
-1. [Key Features](#-key-features)
-2. [System Architecture](#-system-architecture)
-3. [Dual Authentication System](#-dual-authentication-system)
-4. [Technology Stack](#-technology-stack)
-5. [Database Design & MongoDB Indexes](#-database-design--mongodb-indexes)
-6. [API & WebSocket Route Reference](#-api--websocket-route-reference)
-7. [Frontend Routing & Access Control](#-frontend-routing--access-control)
-8. [Environment Variables](#-environment-variables)
-9. [Getting Started Locally](#-getting-started-locally)
-10. [Cloud Deployment Guide](#-cloud-deployment-guide)
-11. [Automated Testing](#-automated-testing)
-12. [System Design Highlights](#-system-design-highlights)
-13. [Author](#-author)
-
----
-
-## 🌟 Key Features
-
-| Feature | Description | Layer |
-|---|---|---|
-| **Google Sign-In (OAuth 2.0)** | One-click login via Google Identity Services (GIS) with generic button, auto-profile sync, and JWT exchange | Full Stack |
-| **Strict Gmail Validation** | Enforces valid `username@gmail.com` on frontend & backend, rejecting typos or invalid domains | Security |
-| **Real-Time WebSockets** | Instant live vote tally broadcasting across clients via Gorilla WebSockets | Backend + Frontend |
-| **Redis Pub/Sub Scaling** | Horizontal WebSocket message synchronization across multi-instance backend nodes | Distributed Cache |
-| **Zero Double-Voting** | Atomic uniqueness guaranteed by MongoDB compound index `{ poll_id: 1, user_id: 1 }` | Database Engine |
-| **Interactive Analytics** | Real-time Recharts dashboards (Votes/Day, Category Distribution, Top Polls, Status metrics) | Frontend + Aggregations |
-| **AI Poll Insights** | Automated poll outcome analysis & recommendations powered by Google Gemini API & heuristics | Go Service + React |
-| **Poll Expiration Worker** | Background Go cron scheduler that auto-closes polls and notifies creators | Go Goroutine |
-| **One-Click Poll Cloning** | Clone questions, choices, and settings to quickly spin up recurring surveys | Backend + Frontend |
-| **Survey Templates** | 5 built-in presets (Tech Stack, Customer Feedback, Hackathon Voting, Team Standup, Sports) | Frontend UI |
-| **Persistent Notification Center** | Real-time alerts for vote milestones, poll closings, and admin announcements | MongoDB + React |
-| **Role-Based Access Control (RBAC)** | Granular `user` and `admin` roles, administrative moderation, and security audit logs | Gin Middleware |
-| **Sliding-Window Rate Limiting** | Redis-powered rate limiter (120 req/min) preventing API abuse and DDoS | Gin Middleware |
-| **Report Exporting & QR Code** | Export results to CSV/JSON and instant SVG QR code generation for mobile voting | React Utilities |
-
----
-
-## 🏛 System Architecture
-
-The application adheres to Go **Clean Architecture** principles, maintaining strict separation of concerns across handlers, services, repositories, models, and domain entities:
-
-```mermaid
-flowchart TD
-    subgraph Clients["Frontend Tier (React 18 SPA + Vite on Vercel)"]
-        Browser["React Client / Lucide / Recharts"]
-        WSClient["WebSocket Live Client"]
-        Guard["ProtectedRoute Auth Guard\n(Zero-Flicker Session Check)"]
-        GoogleAuth["Google Identity Services (GIS)"]
-    end
-
-    subgraph ReverseProxy["Nginx / Vercel Edge"]
-        VercelCDN["Vercel SPA Rewrites (vercel.json)"]
-    end
-
-    subgraph BackendEngine["Go (Gin) Backend API Cluster (Render :8080)"]
-        Router["Gin Router Engine"]
-        Middlewares["Middlewares\n- JWT Auth (HS256)\n- RBAC (Admin/User)\n- Redis Rate Limiter (120 req/min)\n- CORS"]
-        Handlers["Handler Controllers\n- Auth & User Profile\n- Google OAuth Controller\n- Poll & Clone Controller\n- Vote & Aggregation\n- Notifications & Auditing\n- Health & Analytics\n- AI Insights (Gemini)"]
-        Services["Domain Services Layer\n- AuthService & GoogleService\n- PollService & VoteService\n- NotificationService\n- SchedulerService (Cron)\n- AuditService & AIService"]
-        WSHub["WebSocket Room Manager\n- Goroutine Hub Engine"]
-    end
-
-    subgraph DataStorage["Data & Cache Layer"]
-        MongoDB[("MongoDB 8.0 (Atlas)\n- users, polls, votes\n- notifications, audit_logs\n- Compound UK Indexes")]
-        Redis[("Redis 7.0 In-Memory (Render / Upstash)\n- Cache-Aside (5-Min TTL)\n- Sliding-Window Rate Limiting\n- Pub/Sub: poll:updates:*")]
-    end
-
-    Clients --> Guard
-    Guard --> VercelCDN
-    GoogleAuth --> Handlers
-    Browser -->|HTTP REST APIs + Bearer JWT| Middlewares
-    WSClient <-->|WebSocket Stream /ws/polls/:id| WSHub
-    Middlewares --> Router
-    Router --> Handlers
-    Handlers --> Services
-    Services --> MongoDB
-    Services <-->|Cache Hit/Miss & Pub/Sub| Redis
-    Redis -.->|Cross-Node Synchronization| WSHub
-```
-
----
-
-## 🔐 Dual Authentication System
-
-PollSphere supports two secure, modern authentication pathways:
-
-### 1. Google OAuth 2.0 (Google Identity Services)
-* **Generic Button**: Clean `Continue with Google` interface without displaying personalized name/email directly on the page.
-* **Token Verification**: Google ID Token (JWT) is sent to backend `POST /api/auth/google`, verified against Google's TokenInfo endpoint with audience check (`aud == GOOGLE_CLIENT_ID`).
-* **Auto-Provisioning**: New users are provisioned with Google profile picture, name, verified email, and `auth_provider: "google"`. Existing users are seamlessly linked.
-* **PollSphere JWT**: Returns a standard PollSphere Bearer JWT token with zero difference in session handling.
-
-### 2. Strict Gmail Address + Password Authentication
-* **Regex Format**: Only valid Gmail formats allowed (`^[a-zA-Z0-9._]+@gmail\.com$`).
-* Rejects typos like `abc@gmail.commmmm`, `user@gmail.c`, and non-Gmail domains.
-* Passwords hashed using industry-standard **bcrypt** (cost 10).
-
----
-
-## 💻 Technology Stack
-
-### Backend
-* **Language**: Go 1.24
-* **Web Framework**: Gin Web Framework (`github.com/gin-gonic/gin`)
-* **Real-Time**: Gorilla WebSocket (`github.com/gorilla/websocket`)
-* **Database Driver**: Official Go Mongo Driver (`go.mongodb.org/mongo-driver`)
-* **Cache & Pub/Sub**: Go-Redis (`github.com/redis/go-redis/v9`)
-* **Authentication**: JWT (`github.com/golang-jwt/jwt/v5`) + Bcrypt
-* **AI Integration**: Google Generative AI (Gemini)
-* **Validation**: Go Playground Validator
-
-### Frontend
-* **Core**: React 18 + Vite
-* **Styling**: Tailwind CSS + Modern Glassmorphism + Dark Palette
-* **Icons**: Lucide React
-* **Charts**: Recharts (Bar, Pie, Line, Area charts)
-* **Routing**: React Router v6
-* **Notifications**: React Hot Toast + Persistent MongoDB Notification Center
-* **Auth**: Google Identity Services SDK (`accounts.google.com/gsi/client`)
-
----
-
-## 🗄 Database Design & MongoDB Indexes
-
-| Collection | Schema Highlights | Indexes |
-|---|---|---|
-| `users` | `name`, `email`, `password`, `role`, `auth_provider`, `google_id`, `profile_image`, `created_at` | `email` (Unique), `google_id` (Sparse Unique) |
-| `polls` | `title`, `description`, `creator_id`, `category`, `choices[]`, `status`, `expires_at`, `tags[]` | `creator_id`, `category`, `status`, `created_at` |
-| `votes` | `poll_id`, `choice_id`, `user_id`, `created_at` | **`{ poll_id: 1, user_id: 1 }` (Compound Unique)** |
-| `notifications` | `user_id`, `title`, `message`, `type`, `read`, `created_at` | `user_id`, `{ user_id: 1, read: 1 }` |
-| `audit_logs` | `user_id`, `action`, `resource`, `resource_id`, `ip_address`, `timestamp` | `user_id`, `action`, `timestamp` |
-
-> **Concurrency Safety**: The compound unique index on `{ poll_id: 1, user_id: 1 }` strictly rejects duplicate votes at the database engine level (Error `E11000`), guaranteeing zero double-voting under concurrent race conditions.
-
----
-
-## 📡 API & WebSocket Route Reference
-
-### Authentication
-* `POST /api/auth/register` — Register with name, valid Gmail address, and password
-* `POST /api/auth/login` — Sign in with Gmail address and password
-* `POST /api/auth/google` — Authenticate via Google ID token (returns JWT & user profile)
-* `GET /api/auth/me` — Retrieve current authenticated user profile
-
-### Polls & Voting
-* `GET /api/polls` — List active public polls with pagination, search, and category filters
-* `POST /api/polls` — Create a new poll *(Protected)*
-* `GET /api/polls/:id` — Fetch poll details and choices
-* `PUT /api/polls/:id` — Update poll title/description/expiry *(Creator/Admin)*
-* `DELETE /api/polls/:id` — Delete poll and associated votes *(Creator/Admin)*
-* `POST /api/polls/:id/vote` — Cast a vote on a specific choice *(Protected)*
-* `GET /api/polls/:id/results` — Fetch aggregated results (cached in Redis)
-* `POST /api/polls/:id/clone` — Duplicate an existing poll *(Protected)*
-* `GET /api/polls/:id/insights` — Generate AI/statistical insights for poll results
-
-### Real-Time WebSocket
-* `GET /api/ws/polls/:id` — Upgrade connection to WebSocket stream for live vote updates
-
-### Analytics & User Profile
-* `GET /api/analytics/overview` — Platform statistics (total polls, votes, active users)
-* `GET /api/users/my-polls` — List polls created by the logged-in user *(Protected)*
-* `GET /api/users/timeline` — Fetch chronological activity timeline *(Protected)*
-* `GET /api/users/leaderboard` — Top poll creators and community rankings
-
-### Notifications & System
-* `GET /api/notifications` — Fetch user notifications *(Protected)*
-* `PATCH /api/notifications/:id/read` — Mark notification as read *(Protected)*
-* `DELETE /api/notifications/:id` — Remove notification *(Protected)*
-* `GET /health` — Health check endpoint (MongoDB, Redis, and server status)
-
----
-
-## 🧭 Frontend Routing & Access Control
-
-| Route | Component | Access Level | Description |
-|---|---|---|---|
-| `/` | `Home.jsx` | Public | SaaS Landing page with hero, live preview, and features |
-| `/login` | `Login.jsx` | Public | Email & Google sign-in with redirect target preservation |
-| `/register` | `Register.jsx` | Public | Account creation with strict Gmail verification |
-| `/explore` | `Explore.jsx` | Public | Browse public community polls |
-| `/polls/:id` | `PollDetails.jsx` | Public | View poll details, cast vote, and watch live results |
-| `/dashboard` | `Dashboard.jsx` | Protected | User hub, recent activity, quick actions |
-| `/create-poll` | `CreatePoll.jsx` | Protected | Poll creator with choices, timer, category, and templates |
-| `/my-polls` | `MyPolls.jsx` | Protected | Management dashboard for user's created polls |
-| `/analytics` | `AnalyticsDashboard.jsx` | Protected | Visual data analytics with interactive Recharts |
-| `/leaderboard` | `Leaderboard.jsx` | Protected | Community engagement leaderboard |
-| `/profile` | `Profile.jsx` | Protected | User profile, Google account status, activity timeline |
-| `/admin` | `AdminPortal.jsx` | Admin | Administrative moderation, user management, audit logs |
-
----
-
-## ⚙️ Environment Variables
-
-### Frontend (`frontend/.env`)
-```env
-# Backend API base URL
-VITE_API_BASE_URL=https://<your-render-backend>.onrender.com/api
-
-# WebSocket base URL
-VITE_WS_BASE_URL=wss://<your-render-backend>.onrender.com/api/ws
-
-# Google OAuth 2.0 Client ID (public identifier)
-VITE_GOOGLE_CLIENT_ID=your_google_client_id.apps.googleusercontent.com
-```
-
-### Backend (`backend/.env`)
-```env
-# Server Port
-PORT=8080
-GIN_MODE=release
-
-# MongoDB Connection URI
-MONGO_URI=mongodb+srv://<username>:<password>@cluster0.mongodb.net/pollsphere?retryWrites=true&w=majority
-MONGO_DB=pollsphere
-
-# Redis Connection URI
-REDIS_URL=rediss://default:<password>@<your-redis-host>:6379
-
-# JWT Secret Key
-JWT_SECRET=your_super_secret_jwt_key_here
-JWT_EXPIRY_HOURS=72
-
-# Google OAuth 2.0 Credentials (Backend only)
-GOOGLE_CLIENT_ID=your_google_client_id.apps.googleusercontent.com
-GOOGLE_CLIENT_SECRET=your_google_client_secret
-
-# AI Insights (Optional)
-GEMINI_API_KEY=your_gemini_api_key_here
-```
-
-> [!CAUTION]
-> Never commit `GOOGLE_CLIENT_SECRET` or `JWT_SECRET` to Git or public repositories. The client secret must **only** be configured as an environment variable in your backend hosting platform (e.g. Render).
-
----
-
-## 🚀 Getting Started Locally
-
-### Prerequisites
-* **Go 1.24+**: [Download Go](https://go.dev/dl/)
-* **Node.js 18+ & npm**: [Download Node](https://nodejs.org/)
-* **MongoDB**: Local MongoDB instance or free [MongoDB Atlas](https://www.mongodb.com/atlas) cluster
-* **Redis**: Local Redis or free [Upstash Redis](https://upstash.com/) instance
-
-### 1. Clone the Repository
-```bash
-git clone https://github.com/srinagapriya06122006/PollSphere-.git
-cd PollSphere-
-```
-
-### 2. Run the Backend
-```bash
-cd backend
-cp .env.example .env
-# Update .env with your MongoDB URI, Redis URL, and Google Client ID
-go mod download
-go run ./cmd/api/main.go
-```
-The Go backend will start on `http://localhost:8080`.
-
-### 3. Run the Frontend
-```bash
-cd ../frontend
-cp .env.example .env
-# Ensure VITE_API_BASE_URL=http://localhost:8080/api and VITE_GOOGLE_CLIENT_ID are set
-npm install
-npm run dev
-```
-Open `http://localhost:5173` in your browser.
-
----
-
-## ☁️ Cloud Deployment Guide
-
-```
-Google Cloud (OAuth)
-       │
-       ▼
-Vercel (Frontend SPA)
-VITE_GOOGLE_CLIENT_ID
-VITE_API_BASE_URL
-       │
-       ▼
-Render (Backend API Cluster)
-GOOGLE_CLIENT_ID
-GOOGLE_CLIENT_SECRET
-MONGO_URI / REDIS_URL
-       │
-       ▼
-MongoDB Atlas & Redis
-```
-
-### 1. Google Cloud Console
-1. Create a project in [Google Cloud Console](https://console.cloud.google.com/).
-2. Navigate to **APIs & Services** > **Credentials** > **OAuth 2.0 Client IDs**.
-3. Under **Authorized JavaScript origins**, add:
-   - `http://localhost:5173` (for local development)
-   - `https://poll-sphere-beta.vercel.app` (your Vercel production domain)
-4. Copy your **Client ID** (for frontend & backend) and **Client Secret** (for backend only).
-
-### 2. Frontend on Vercel
-1. Connect repository on [Vercel](https://vercel.com).
-2. Set Root Directory: `frontend`.
-3. Add Environment Variables:
-   - `VITE_API_BASE_URL` = `https://<your-backend>.onrender.com/api`
-   - `VITE_WS_BASE_URL` = `wss://<your-backend>.onrender.com/api/ws`
-   - `VITE_GOOGLE_CLIENT_ID` = `your_google_client_id.apps.googleusercontent.com`
-4. Deploy! All SPA routes are automatically handled by `vercel.json`.
-
-### 3. Backend on Render
-1. Create a **Web Service** on [Render](https://render.com).
-2. Root Directory: `backend`.
-3. Build Command: `go build -o server ./cmd/api/main.go`.
-4. Start Command: `./server`.
-5. Add Environment Variables: `MONGO_URI`, `MONGO_DB`, `REDIS_URL`, `JWT_SECRET`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`.
-
----
-
-## 📋 Internship Requirements & Verification Audit
-
-| Requirement | Status | Evidence / Implementation File | Audit Notes & Actions |
-|-------------|--------|-------------------------------|-----------------------|
-| **React Frontend** | ✅ PASS | `frontend/src/App.jsx`, `frontend/src/routes/AppRoutes.jsx`, `frontend/package.json` | React 18 SPA with modular component hierarchy, Vite build system, Tailwind CSS design system, and Recharts analytics. |
-| **Go + Gin Backend** | ✅ PASS | `backend/cmd/api/main.go`, `backend/internal/router/router.go`, `backend/internal/handler/` | Gin Clean Architecture with structured handlers, domain services, custom middlewares, and graceful shutdown. |
-| **MongoDB Database** | ✅ PASS | `backend/internal/database/mongodb.go`, `backend/internal/repository/` | MongoDB 8.0 official Go driver (`v2`), atomic compound unique indexes on `{poll_id, user_id}`, aggregation pipelines. |
-| **Redis Realtime** | ✅ PASS | `backend/internal/database/redis.go`, `backend/internal/websocket/hub.go`, `backend/internal/service/vote_service.go` | Genuine Redis Pub/Sub (`poll:updates:*`) horizontal sync + Cache-Aside (5-min TTL) with automatic invalidation on votes. |
-| **Create Poll** | ✅ PASS | `frontend/src/pages/CreatePoll.jsx`, `backend/internal/handler/poll.go`, `backend/internal/service/poll_service.go` | Form validation (min 2 options, question length, categories, optional expiry timer, preset templates). Requires valid JWT. |
-| **Share Poll** | ✅ PASS | `frontend/src/pages/PollDetails.jsx` (`handleCopyLink`, `QRCodeModal.jsx`) | One-click clipboard link sharing and instant SVG QR code generation for mobile devices. Direct URL access. |
-| **Audience Voting** | ✅ PASS | `frontend/src/pages/PollDetails.jsx`, `backend/internal/handler/vote.go`, `backend/internal/service/vote_service.go` | Publicly accessible poll view with sign-in preservation (`?redirect=/polls/:id`). Validated and persisted in MongoDB. |
-| **Live Results** | ✅ PASS | `frontend/src/hooks/usePollWebSocket.js`, `backend/internal/websocket/hub.go` | Real-time WebSocket broadcasting upon vote ingestion. Zero page refresh required. Automatic reconnection fallback. |
-| **Authentication** | ✅ PASS | `backend/internal/service/auth_service.go`, `frontend/src/context/AuthContext.jsx` | Dual authentication: Strict Gmail address validation + Google OAuth 2.0 (GIS). HS256 JWT tokens. |
-| **Backend Validation** | ✅ PASS | `backend/internal/handler/`, `backend/internal/model/` | Server-side validation on all endpoints: duplicate voting, poll closure, payload constraints, strict email regex. |
-| **Separation of Concerns** | ✅ PASS | `backend/internal/` (handlers, services, repositories, models) | Clean Architecture; database logic never leaks to UI; WebSocket hub cleanly isolated from HTTP handlers. |
-| **Security** | ✅ PASS | `backend/internal/middleware/`, `.gitignore`, `backend/internal/service/jwt_service.go` | Bcrypt hashing (cost 10), CORS restrictions, sliding-window rate limiting (120 req/min), `.env` protected in `.gitignore`. |
-| **Deployment** | ✅ PASS | `vercel.json`, `backend/Dockerfile`, `frontend/Dockerfile`, `docker-compose.yml` | Live frontend deployed on Vercel; Docker multi-stage builds ready for production containers. |
-| **UI/UX** | ✅ PASS | `frontend/src/components/`, `frontend/src/pages/` | Modern responsive dark/light mode SaaS design, custom typography, glassmorphism, skeleton loading states, empty states. |
-| **README** | ✅ PASS | `README.md` | Complete architecture diagram, dual auth breakdown, API references, database schemas, local setup, and cloud guides. |
-| **Submission Video** | ⏳ READY | 3–5 min video (Presentation script prepared in audit documentation) | Record workflow: Create poll → Share link → Audience votes → Real-time result update. |
-
----
-
-## 🧪 Automated Testing
-
-
-Execute the Go test suite across handlers, services, middlewares, and models:
-
-```bash
-cd backend
-go test -v ./...
-```
-
-Verified Test Coverage:
-- ✅ **Token Management**: Creation, HMAC-SHA256 signature verification, and expiration handling.
-- ✅ **Middleware Security**: Bearer header validation, malformed token rejection, and role-based permissions.
-- ✅ **Validation Guardrails**: Duplicate email prevention, strict Gmail format validation.
-- ✅ **Concurrency Safety**: Double-voting rejection and closed poll voting prevention.
-
----
-
-## 💡 System Design Highlights
-
-1. **Atomic Concurrency Control**: Double-voting is prevented at both the service layer and database engine layer using a compound unique index `{ poll_id: 1, user_id: 1 }`.
-2. **Distributed WebSocket Scaling**: Multiple Go backend nodes communicate via Redis Pub/Sub channels (`poll:updates:<poll_id>`), allowing users connected to different servers to receive real-time vote updates instantaneously.
-3. **Cache-Aside Result Acceleration**: Poll results are cached in Redis with a 5-minute TTL. Casting a vote immediately invalidates the cache (`DEL poll:results:<id>`), ensuring subsequent reads always reflect the latest tallies.
-4. **Background Cron Expiration**: A dedicated Go background goroutine monitors expiring polls, transitions their status to `closed`, invalidates caches, notifies authors, and broadcasts `POLL_EXPIRED` to all active viewers.
-
----
-
-## 👤 Author
-
-**Srinagapriya**  
-* GitHub: [@srinagapriya06122006](https://github.com/srinagapriya06122006)  
-* Project: [PollSphere-](https://github.com/srinagapriya06122006/PollSphere-)
-
----Yes. Your current README has good technical depth, but it looks **too enterprise-heavy and slightly overclaimed** in places. For a GitHub internship/project submission, I would make it more professional, easier to scan, and focused on **what PollSphere actually does**.
-
-Below is a polished version you can directly use as `README.md`.
+Absolutely. Use this as your **final `README.md`**. It is professional, recruiter-friendly, and uses your correct GitHub and live links.
 
 ````markdown
 # 🌐 PollSphere — Real-Time Polling & Analytics Platform
@@ -395,30 +11,30 @@ The platform allows authenticated users to create and manage polls while partici
 
 ---
 
-## 🚀 Live Demo
+## 🚀 Project Links
 
-**Frontend:**  
-https://poll-sphere-beta.vercel.app/
-
-**Backend API:**  
-https://pollsphere-py5v.onrender.com
-
-**GitHub Repository:**  
-https://github.com/srinagapriya06122006/PollSphere-
+| Resource | Link |
+|---|---|
+| 🌐 Live Application | https://poll-sphere-beta.vercel.app/ |
+| 💻 GitHub Repository | https://github.com/srinagapriya06122006/PollSphere- |
+| ⚙️ Backend API | https://pollsphere-py5v.onrender.com |
 
 ---
 
-## ✨ Features
+## ✨ Key Features
 
 ### 📊 Poll Management
+
 - Create polls with multiple choices
 - Add descriptions and categories
 - Configure poll expiration
 - Edit and delete polls
 - Clone existing polls
 - Manage created polls from a dedicated dashboard
+- Use predefined poll templates
 
 ### ⚡ Real-Time Voting
+
 - Vote on active polls
 - Live result updates without page refresh
 - WebSocket-based communication
@@ -426,18 +42,21 @@ https://github.com/srinagapriya06122006/PollSphere-
 - Automatic WebSocket reconnection
 
 ### 🔐 Authentication & Security
+
 - Email/password authentication
 - Strict Gmail address validation
 - Google Sign-In using Google Identity Services
 - JWT-based authentication
-- Password hashing with bcrypt
+- bcrypt password hashing
 - Protected routes
 - Role-based access control
 - API rate limiting
 - CORS protection
 - Backend request validation
+- Duplicate vote protection
 
 ### 📈 Analytics
+
 - Vote statistics
 - Poll performance metrics
 - Category distribution
@@ -446,18 +65,21 @@ https://github.com/srinagapriya06122006/PollSphere-
 - CSV/JSON result export
 
 ### 📱 Poll Sharing
+
 - Shareable poll URLs
 - Copy poll link
 - QR code generation
 - Mobile-friendly voting experience
 
 ### 🔔 Notifications
+
 - Poll activity notifications
 - Vote milestone notifications
 - Poll expiration notifications
 - Persistent notification center
 
 ### 🤖 AI Poll Insights
+
 - AI-assisted poll result analysis
 - Statistical insights
 - Automated recommendations
@@ -939,9 +561,9 @@ http://localhost:5173
 
 # 🐳 Docker
 
-PollSphere also includes Docker configuration for local infrastructure and deployment.
+PollSphere includes Docker configuration for local infrastructure and deployment.
 
-Start services using:
+Start services:
 
 ```bash
 docker compose up -d
@@ -967,21 +589,17 @@ docker compose down
 
 The React application is deployed using **Vercel**.
 
-Production frontend:
+**Production URL:**
 
-```text
-https://poll-sphere-beta.vercel.app/
-```
+[https://poll-sphere-beta.vercel.app/](https://poll-sphere-beta.vercel.app/)
 
 ## Backend
 
 The Go API is deployed using **Render**.
 
-Production backend:
+**Production URL:**
 
-```text
-https://pollsphere-py5v.onrender.com
-```
+[https://pollsphere-py5v.onrender.com](https://pollsphere-py5v.onrender.com)
 
 ## Database
 
@@ -1165,11 +783,4 @@ The project demonstration covers:
 # 📄 License
 
 This project is licensed under the MIT License.
-
----
-
-<p align="center">
-  Built with React, Go, MongoDB, Redis and WebSockets
-</p>
-```
 
