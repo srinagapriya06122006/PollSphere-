@@ -9,7 +9,7 @@ export const AnalyticsPreview = () => {
   const { isAuthenticated } = useAuth()
 
   return (
-    <section className="w-full py-12 sm:py-16 bg-white dark:bg-slate-900/30 border-y border-slate-200/60 dark:border-slate-800/60 transition-colors duration-200">
+    <section className="w-full py-16 sm:py-20 lg:py-24 bg-white dark:bg-slate-900/30 border-y border-slate-200/60 dark:border-slate-800/60 transition-colors duration-200">
       <div className="max-w-[1500px] w-full mx-auto px-4 sm:px-8 lg:px-12">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-14 items-center">
           {/* Left Description (~45% width) */}
