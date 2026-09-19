@@ -12,13 +12,25 @@ export const Footer = () => {
         <div className="grid grid-cols-2 md:grid-cols-5 gap-8 mb-10">
           {/* Brand & Mission (Col 1-2 on mobile, Col 1 on desktop) */}
           <div className="col-span-2 space-y-4">
-            <Link to="/" className="flex items-center gap-2.5">
-              <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-indigo-600 to-purple-500 flex items-center justify-center text-white shadow-md shadow-indigo-600/20">
-                <BarChart3 className="w-5 h-5" />
+            <Link to="/" className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl overflow-hidden bg-slate-900 border border-indigo-500/30 flex items-center justify-center shadow-md shadow-indigo-600/20">
+                <img
+                  src="/pollsphere-logo.jpg"
+                  alt="PollSphere"
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    e.target.style.display = 'none'
+                  }}
+                />
               </div>
-              <span className="text-lg font-black text-slate-900 dark:text-slate-100 tracking-tight">
-                PulsePoll
-              </span>
+              <div>
+                <span className="text-xl font-black font-['Outfit',sans-serif] text-slate-900 dark:text-slate-100 tracking-tight">
+                  PollSphere
+                </span>
+                <p className="text-[10px] font-bold uppercase tracking-wider text-indigo-500">
+                  Real-Time Polling & Analytics
+                </p>
+              </div>
             </Link>
             <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed font-medium max-w-sm">
               The high-performance, real-time polling platform designed for communities, classrooms, and modern engineering teams.
@@ -116,7 +128,7 @@ export const Footer = () => {
             <ul className="space-y-2 font-medium">
               <li>
                 <Link to="/about" className="hover:text-indigo-600 dark:hover:text-indigo-400 transition">
-                  About PulsePoll
+                  About PollSphere
                 </Link>
               </li>
               <li>
@@ -132,7 +144,7 @@ export const Footer = () => {
               </li>
               <li>
                 <a
-                  href="mailto:contact@pulsepoll.io"
+                  href="mailto:contact@pollsphere.io"
                   className="hover:text-indigo-600 dark:hover:text-indigo-400 transition flex items-center gap-1.5"
                 >
                   <Mail className="w-3.5 h-3.5" />
@@ -155,7 +167,7 @@ export const Footer = () => {
 
         {/* Bottom Bar */}
         <div className="pt-6 border-t border-slate-100 dark:border-slate-800/80 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500 dark:text-slate-400 font-medium">
-          <p>&copy; {new Date().getFullYear()} PulsePoll Inc. All rights reserved.</p>
+          <p>&copy; {new Date().getFullYear()} PollSphere Inc. All rights reserved.</p>
           <div className="flex items-center gap-4">
             <span className="flex items-center gap-1">
               Engineered with <Heart className="w-3.5 h-3.5 text-rose-500 fill-rose-500" /> for real-time consensus

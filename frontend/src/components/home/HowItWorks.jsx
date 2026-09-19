@@ -34,8 +34,8 @@ export const HowItWorks = () => {
           <span className="text-xs font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">
             Process
           </span>
-          <h2 className="text-2xl sm:text-3xl lg:text-4xl font-black text-slate-900 dark:text-slate-100 tracking-tight">
-            How PulsePoll Works
+          <h2 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-slate-100 tracking-tight">
+            How PollSphere Works
           </h2>
           <p className="text-sm sm:text-base text-slate-600 dark:text-slate-400 font-medium">
             Get started in seconds without complex setup.

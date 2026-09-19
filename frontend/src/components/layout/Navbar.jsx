@@ -98,15 +98,26 @@ export const Navbar = () => {
     <header className="sticky top-0 z-50 bg-white/90 dark:bg-slate-950/90 backdrop-blur-xl border-b border-slate-200 dark:border-slate-800/80 transition-colors duration-200">
       <div className="max-w-[1500px] w-full mx-auto px-4 sm:px-8 lg:px-12 h-16 flex items-center justify-between">
         {/* Brand Logo */}
-        <Link to="/" className="flex items-center gap-2.5 group">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-purple-500 flex items-center justify-center shadow-lg shadow-indigo-950/20 group-hover:scale-105 transition-transform duration-200">
-            <BarChart3 className="w-5 h-5 text-white" />
+        <Link to="/" className="flex items-center gap-3 group">
+          <div className="w-10 h-10 rounded-xl overflow-hidden bg-slate-900 border border-indigo-500/30 flex items-center justify-center shadow-lg shadow-indigo-950/20 group-hover:scale-105 transition-transform duration-200">
+            <img
+              src="/pollsphere-logo.jpg"
+              alt="PollSphere"
+              className="w-full h-full object-cover"
+              onError={(e) => {
+                e.target.style.display = 'none'
+                e.target.nextSibling.style.display = 'flex'
+              }}
+            />
+            <div className="hidden w-full h-full bg-gradient-to-tr from-indigo-600 via-purple-600 to-indigo-500 items-center justify-center text-white font-black text-xs">
+              PS
+            </div>
           </div>
-          <div>
-            <span className="text-lg font-black bg-gradient-to-r from-slate-900 via-indigo-900 to-slate-800 dark:from-white dark:via-slate-200 dark:to-indigo-200 bg-clip-text text-transparent">
-              PulsePoll
+          <div className="flex items-center">
+            <span className="text-xl font-black font-['Outfit',sans-serif] tracking-tight bg-gradient-to-r from-slate-900 via-indigo-900 to-indigo-600 dark:from-white dark:via-slate-100 dark:to-indigo-300 bg-clip-text text-transparent">
+              PollSphere
             </span>
-            <span className="hidden sm:inline-flex items-center gap-1.5 ml-2 text-[10px] font-bold uppercase px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+            <span className="hidden sm:inline-flex items-center gap-1.5 ml-2 text-[10px] font-extrabold uppercase px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
               <span className="relative flex h-1.5 w-1.5">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span>

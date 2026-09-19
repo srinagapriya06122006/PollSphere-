@@ -13,7 +13,7 @@ export const TestimonialsSection = () => {
       initials: 'AS',
     },
     {
-      quote: 'Real-time updates are amazing. We used PulsePoll for our live campus hackathon voting and 400+ attendees voted synchronously without a glitch.',
+      quote: 'Real-time updates are amazing. We used PollSphere for our live campus hackathon voting and 400+ attendees voted synchronously without a glitch.',
       author: 'Priya Raman',
       role: 'Community Organizer',
       organization: 'DevCon Summit',
@@ -44,7 +44,7 @@ export const TestimonialsSection = () => {
             What Users Say
           </h2>
           <p className="text-sm text-slate-600 dark:text-slate-400 font-medium">
-            Hear from students, event organizers, and engineering teams using PulsePoll daily.
+            Hear from students, event organizers, and engineering teams using PollSphere daily.
           </p>
         </div>
 

@@ -1,12 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react'
-import { useParams, Link, useNavigate } from 'react-router-dom'
+import { useParams, Link, useNavigate, useLocation } from 'react-router-dom'
 import {
   Clock,
   User,
   CheckCircle,
   ArrowLeft,
   BarChart2,
-  ShieldAlert,
   Share2,
   Download,
   QrCode,
@@ -14,6 +13,12 @@ import {
   Hourglass,
   Layers,
   Copy,
+  Compass,
+  PlusCircle,
+  RefreshCw,
+  Search,
+  Check,
+  Flame,
 } from 'lucide-react'
 import pollService from '../services/pollService'
 import voteService from '../services/voteService'
@@ -23,39 +28,63 @@ import Card from '../components/common/Card'
 import Button from '../components/common/Button'
 import OptionVoteButton from '../components/poll/OptionVoteButton'
 import LiveStatusBadge from '../components/poll/LiveStatusBadge'
-import LoadingSpinner from '../components/common/LoadingSpinner'
-import ErrorState from '../components/common/ErrorState'
 import QRCodeModal from '../components/poll/QRCodeModal'
 import ExportModal from '../components/poll/ExportModal'
 import AIInsightsCard from '../components/poll/AIInsightsCard'
 import PollComments from '../components/poll/PollComments'
+import { getFeaturedPollById, castFeaturedVote } from '../data/featuredPolls'
 
 export const PollDetails = () => {
   const { id } = useParams()
   const navigate = useNavigate()
+  const location = useLocation()
   const { isAuthenticated } = useAuth()
 
   const [poll, setPoll] = useState(null)
   const [results, setResults] = useState(null)
-  const [selectedOption, setSelectedOption] = useState(null)
+  const [selectedOption, setSelectedOption] = useState(
+    location.state?.preselectedOption || null
+  )
   const [hasVoted, setHasVoted] = useState(false)
   const [loading, setLoading] = useState(true)
   const [voting, setVoting] = useState(false)
   const [cloning, setCloning] = useState(false)
+  const [isFeatured, setIsFeatured] = useState(false)
+  const [notFound, setNotFound] = useState(false)
+  const [copiedLink, setCopiedLink] = useState(false)
   const [error, setError] = useState(null)
   const [isQRModalOpen, setIsQRModalOpen] = useState(false)
   const [isExportModalOpen, setIsExportModalOpen] = useState(false)
 
-  // Fetch initial poll & results via REST
+  // Fetch initial poll & results via REST with seamless fallback to featured sample polls
   const fetchPollData = async () => {
     if (!id || id === 'undefined') {
-      setError("We couldn't load this poll. The poll link is invalid or missing.")
+      setNotFound(true)
       setLoading(false)
       return
     }
 
     setLoading(true)
     setError(null)
+    setNotFound(false)
+
+    // Check if it's a known featured sample poll first
+    const featuredMatch = getFeaturedPollById(id)
+    if (featuredMatch) {
+      setPoll(featuredMatch.poll)
+      setResults(featuredMatch.results)
+      setIsFeatured(true)
+      if (featuredMatch.results?.userVotedOptionId) {
+        setHasVoted(true)
+        setSelectedOption(featuredMatch.results.userVotedOptionId)
+      } else if (location.state?.preselectedOption) {
+        setSelectedOption(location.state.preselectedOption)
+      }
+      setLoading(false)
+      return
+    }
+
+    // Try backend REST API
     try {
       const [pollData, resultsData] = await Promise.all([
         pollService.getPollById(id),
@@ -63,12 +92,27 @@ export const PollDetails = () => {
       ])
       setPoll(pollData)
       setResults(resultsData)
+      setIsFeatured(false)
       if (resultsData?.userVotedOptionId) {
         setHasVoted(true)
         setSelectedOption(resultsData.userVotedOptionId)
+      } else if (location.state?.preselectedOption) {
+        setSelectedOption(location.state.preselectedOption)
       }
     } catch (err) {
-      setError("We couldn't load this poll. It may have been removed or expired.")
+      // If backend fails or not found, check if a fallback sample matches
+      const fallback = getFeaturedPollById(id)
+      if (fallback) {
+        setPoll(fallback.poll)
+        setResults(fallback.results)
+        setIsFeatured(true)
+        if (fallback.results?.userVotedOptionId) {
+          setHasVoted(true)
+          setSelectedOption(fallback.results.userVotedOptionId)
+        }
+      } else {
+        setNotFound(true)
+      }
     } finally {
       setLoading(false)
     }
@@ -79,6 +123,27 @@ export const PollDetails = () => {
       navigate('/login', { state: { from: { pathname: `/polls/${id}` } } })
       return
     }
+
+    if (isFeatured) {
+      // If cloning a featured poll, create via API
+      try {
+        setCloning(true)
+        const cloned = await pollService.createPoll({
+          question: `${poll.question} (Copy)`,
+          category: poll.category || 'general',
+          options: poll.options.map((o) => o.text),
+        })
+        if (cloned?.id) {
+          navigate(`/polls/${cloned.id}`)
+        }
+      } catch (e) {
+        setError('Failed to duplicate poll')
+      } finally {
+        setCloning(false)
+      }
+      return
+    }
+
     try {
       setCloning(true)
       const cloned = await pollService.clonePoll(id)
@@ -105,42 +170,62 @@ export const PollDetails = () => {
     fetchPollData()
   }, [id])
 
-  // WebSocket Live Real-Time Updates Callback
-  const handleLiveUpdate = useCallback((liveData) => {
-    if (liveData?.status === 'closed') {
-      setPoll((prev) => (prev ? { ...prev, status: 'closed' } : prev))
-      window.dispatchEvent(
-        new CustomEvent('live-notification', {
-          detail: {
-            title: 'Poll Closed',
-            message: 'This poll has reached its expiration time.',
-            type: 'warning',
-          },
-        })
-      )
-    }
+  // WebSocket Live Real-Time Updates Callback (for real polls)
+  const handleLiveUpdate = useCallback(
+    (liveData) => {
+      if (isFeatured) return // Local mock already synced
 
-    if (liveData?.data) {
-      setResults(liveData.data)
-      if (liveData.data.userVotedOptionId) {
-        setHasVoted(true)
-        setSelectedOption(liveData.data.userVotedOptionId)
+      if (liveData?.status === 'closed') {
+        setPoll((prev) => (prev ? { ...prev, status: 'closed' } : prev))
       }
-    } else {
-      setResults(liveData)
-      if (liveData?.userVotedOptionId) {
-        setHasVoted(true)
-        setSelectedOption(liveData.userVotedOptionId)
-      }
-    }
-  }, [])
 
-  const { status: wsStatus, reconnect: reconnectWs } = usePollWebSocket(id, handleLiveUpdate)
+      if (liveData?.data) {
+        setResults(liveData.data)
+        if (liveData.data.userVotedOptionId) {
+          setHasVoted(true)
+          setSelectedOption(liveData.data.userVotedOptionId)
+        }
+      } else if (liveData) {
+        setResults(liveData)
+        if (liveData?.userVotedOptionId) {
+          setHasVoted(true)
+          setSelectedOption(liveData.userVotedOptionId)
+        }
+      }
+    },
+    [isFeatured]
+  )
+
+  const { status: wsStatus, reconnect: reconnectWs } = usePollWebSocket(
+    isFeatured ? null : id,
+    handleLiveUpdate
+  )
 
   const handleVote = async () => {
     if (!selectedOption || voting || hasVoted) return
     setVoting(true)
     setError(null)
+
+    // Handle featured sample polls with local persistence
+    if (isFeatured) {
+      setTimeout(() => {
+        const updated = castFeaturedVote(id, selectedOption)
+        setPoll(updated.poll)
+        setResults(updated.results)
+        setHasVoted(true)
+        setVoting(false)
+        window.dispatchEvent(
+          new CustomEvent('live-notification', {
+            detail: {
+              title: 'Vote Cast Successfully',
+              message: `Your vote was recorded on "${poll?.question}"`,
+              type: 'success',
+            },
+          })
+        )
+      }, 300)
+      return
+    }
 
     try {
       await voteService.castVote(id, selectedOption)
@@ -163,6 +248,12 @@ export const PollDetails = () => {
     }
   }
 
+  const handleCopyLink = () => {
+    navigator.clipboard.writeText(window.location.href)
+    setCopiedLink(true)
+    setTimeout(() => setCopiedLink(false), 2500)
+  }
+
   const categoryIcons = {
     technology: '💻',
     education: '🎓',
@@ -180,7 +271,7 @@ export const PollDetails = () => {
     if (diff <= 0) return 'Expired'
     const mins = Math.floor(diff / (1000 * 60))
     if (mins < 60) return `Closes in ${mins}m`
-    const hours = Math.floor(mins / 60)
+    const hours = Math.floor(mins / (1000 * 60 * 60))
     if (hours < 24) return `Closes in ${hours}h`
     const days = Math.floor(hours / 24)
     return `Closes in ${days}d`
@@ -188,34 +279,106 @@ export const PollDetails = () => {
 
   const expiryText = getExpiryText()
 
-  if (loading) return <LoadingSpinner message="Connecting to live poll..." />
-  if (error && !poll) {
+  // 1. Sleek Skeleton Loading State
+  if (loading) {
     return (
-      <div className="rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-8 text-center max-w-md mx-auto my-12 shadow-xl space-y-4">
-        <div className="w-14 h-14 rounded-2xl bg-rose-500/10 text-rose-500 flex items-center justify-center mx-auto mb-2 border border-rose-500/20">
-          <ShieldAlert className="w-7 h-7" />
+      <div className="max-w-3xl mx-auto space-y-6 py-6 animate-pulse">
+        <div className="flex items-center justify-between">
+          <div className="h-5 w-32 bg-slate-200 dark:bg-slate-800 rounded-lg" />
+          <div className="h-8 w-44 bg-slate-200 dark:bg-slate-800 rounded-xl" />
         </div>
-        <h3 className="text-lg font-black text-slate-900 dark:text-slate-100">
-          We couldn't load this poll
-        </h3>
-        <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed font-medium">
-          {error}
-        </p>
-        <div className="flex items-center justify-center gap-3 pt-3">
-          {id && id !== 'undefined' && (
-            <Button variant="secondary" size="sm" onClick={fetchPollData}>
-              Try Again
-            </Button>
-          )}
-          <Link to="/explore">
-            <Button variant="primary" size="sm">
-              Back to Explore
-            </Button>
-          </Link>
+
+        <div className="rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-8 space-y-6">
+          <div className="flex items-center justify-between">
+            <div className="flex gap-2">
+              <div className="h-6 w-24 bg-slate-200 dark:bg-slate-800 rounded-full" />
+              <div className="h-6 w-28 bg-slate-200 dark:bg-slate-800 rounded-full" />
+            </div>
+            <div className="h-6 w-20 bg-slate-200 dark:bg-slate-800 rounded-full" />
+          </div>
+
+          <div className="space-y-2">
+            <div className="h-8 w-5/6 bg-slate-200 dark:bg-slate-800 rounded-xl" />
+            <div className="h-5 w-1/2 bg-slate-200 dark:bg-slate-800 rounded-lg" />
+          </div>
+
+          <div className="space-y-3 pt-4">
+            <div className="h-14 w-full bg-slate-200 dark:bg-slate-800 rounded-2xl" />
+            <div className="h-14 w-full bg-slate-200 dark:bg-slate-800 rounded-2xl" />
+            <div className="h-14 w-full bg-slate-200 dark:bg-slate-800 rounded-2xl" />
+            <div className="h-14 w-full bg-slate-200 dark:bg-slate-800 rounded-2xl" />
+          </div>
+
+          <div className="pt-6 border-t border-slate-200 dark:border-slate-800 flex justify-between items-center">
+            <div className="h-6 w-32 bg-slate-200 dark:bg-slate-800 rounded-lg" />
+            <div className="h-10 w-36 bg-slate-200 dark:bg-slate-800 rounded-xl" />
+          </div>
+        </div>
+
+        <div className="text-center text-xs font-semibold text-slate-500 dark:text-slate-400">
+          Loading poll... Fetching latest results...
         </div>
       </div>
     )
   }
+
+  // 2. Redesigned "Poll Not Available" State
+  if (notFound || (!poll && error)) {
+    return (
+      <div className="max-w-lg mx-auto py-16 px-4">
+        <div className="rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-8 sm:p-10 text-center shadow-2xl space-y-5">
+          {/* Glowing Illustration Icon */}
+          <div className="w-16 h-16 rounded-3xl bg-indigo-500/10 dark:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 flex items-center justify-center mx-auto border border-indigo-500/30 shadow-lg shadow-indigo-500/10">
+            <Search className="w-8 h-8" />
+          </div>
+
+          <div className="space-y-2">
+            <h2 className="text-2xl font-black font-['Outfit',sans-serif] text-slate-900 dark:text-slate-100">
+              Poll Not Available
+            </h2>
+            <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 leading-relaxed font-medium">
+              This poll may have been removed, expired, or the link is invalid. Please explore other active community polls or create a new one.
+            </p>
+          </div>
+
+          {/* Action Buttons */}
+          <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">
+            <Link to="/explore" className="w-full sm:w-auto">
+              <Button variant="primary" size="md" className="w-full font-bold shadow-lg shadow-indigo-600/20">
+                <Compass className="w-4 h-4 mr-2" />
+                Explore Active Polls
+              </Button>
+            </Link>
+
+            <Link to="/create-poll" className="w-full sm:w-auto">
+              <Button variant="outline" size="md" className="w-full font-bold">
+                <PlusCircle className="w-4 h-4 mr-2" />
+                Create Poll
+              </Button>
+            </Link>
+          </div>
+
+          <div className="pt-4 border-t border-slate-100 dark:border-slate-800 flex items-center justify-center gap-4 text-xs font-semibold text-slate-500">
+            <button
+              onClick={fetchPollData}
+              className="hover:text-indigo-600 dark:hover:text-indigo-400 flex items-center gap-1.5 transition-colors"
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+              <span>Retry</span>
+            </button>
+            <span>•</span>
+            <Link
+              to="/polls/sample-1"
+              className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
+            >
+              Try Featured Poll
+            </Link>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   if (!poll) return null
 
   return (
@@ -223,13 +386,31 @@ export const PollDetails = () => {
       {/* Top Action Bar */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <Link
-          to="/"
+          to="/explore"
           className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-600 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
         >
-          <ArrowLeft className="w-4 h-4" /> Back to Dashboard
+          <ArrowLeft className="w-4 h-4" /> Back to Explore Polls
         </Link>
 
         <div className="flex items-center gap-2">
+          {/* Copy Link Button */}
+          <button
+            onClick={handleCopyLink}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition shadow-sm"
+          >
+            {copiedLink ? (
+              <>
+                <Check className="w-3.5 h-3.5 text-emerald-500" />
+                <span className="text-emerald-600 dark:text-emerald-400">Link Copied!</span>
+              </>
+            ) : (
+              <>
+                <Share2 className="w-3.5 h-3.5 text-slate-400" />
+                <span>Share</span>
+              </>
+            )}
+          </button>
+
           {/* Clone / Duplicate Poll Button */}
           <button
             onClick={handleClonePoll}
@@ -238,7 +419,7 @@ export const PollDetails = () => {
             title="Duplicate question & choices into a fresh poll"
           >
             <Copy className="w-3.5 h-3.5 text-amber-500" />
-            <span>{cloning ? 'Cloning...' : 'Duplicate Poll'}</span>
+            <span>{cloning ? 'Cloning...' : 'Duplicate'}</span>
           </button>
 
           {/* QR Share Modal Button */}
@@ -247,7 +428,7 @@ export const PollDetails = () => {
             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition shadow-sm"
           >
             <QrCode className="w-3.5 h-3.5 text-indigo-500" />
-            <span>QR & Share</span>
+            <span>QR Code</span>
           </button>
 
           {/* Export Results Button */}
@@ -256,7 +437,7 @@ export const PollDetails = () => {
             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:text-emerald-600 dark:hover:text-emerald-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition shadow-sm"
           >
             <Download className="w-3.5 h-3.5 text-emerald-500" />
-            <span>Export Report</span>
+            <span>Export</span>
           </button>
         </div>
       </div>
@@ -272,12 +453,12 @@ export const PollDetails = () => {
 
             <span className="flex items-center gap-1.5 font-bold text-slate-700 dark:text-slate-300">
               <User className="w-3.5 h-3.5 text-slate-500" />
-              {poll.creator_name || 'Anonymous'}
+              {poll.creator_name || 'Community Member'}
             </span>
 
-            <span className="flex items-center gap-1.5 font-bold text-slate-600 dark:text-slate-400">
-              <Clock className="w-3.5 h-3.5 text-slate-500" />
-              {new Date(poll.created_at).toLocaleDateString()}
+            <span className="flex items-center gap-1.5 font-bold text-slate-500 dark:text-slate-400">
+              <Clock className="w-3.5 h-3.5 text-slate-400" />
+              {new Date(poll.created_at || Date.now()).toLocaleDateString()}
             </span>
           </div>
 
@@ -297,18 +478,20 @@ export const PollDetails = () => {
             >
               {poll.status}
             </span>
-            <LiveStatusBadge status={wsStatus} onRetry={reconnectWs} />
+            <LiveStatusBadge
+              status={isFeatured ? 'connected' : wsStatus}
+              onRetry={reconnectWs}
+            />
           </div>
         </div>
 
         {/* Question Title */}
-        <h1 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-slate-100 leading-snug tracking-tight">
+        <h1 className="text-2xl sm:text-3xl font-black font-['Outfit',sans-serif] text-slate-900 dark:text-slate-100 leading-snug tracking-tight">
           {poll.question}
         </h1>
 
         {error && (
           <div className="p-4 rounded-xl bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/20 text-rose-700 dark:text-rose-300 text-xs font-bold flex items-center gap-2">
-            <ShieldAlert className="w-4 h-4 text-rose-500 shrink-0" />
             <span>{error}</span>
           </div>
         )}
@@ -327,7 +510,11 @@ export const PollDetails = () => {
                 hasVoted={hasVoted || poll.status === 'closed'}
                 voteResult={voteResult}
                 totalVotes={results?.totalVotes || 0}
-                onClick={() => setSelectedOption(option.id)}
+                onClick={() => {
+                  if (!hasVoted && poll.status === 'active') {
+                    setSelectedOption(option.id)
+                  }
+                }}
               />
             )
           })}
@@ -346,9 +533,12 @@ export const PollDetails = () => {
           </div>
 
           <div>
-            {!isAuthenticated ? (
-              <Link to={`/login?redirect=${encodeURIComponent(`/polls/${id}`)}`} state={{ from: { pathname: `/polls/${id}` } }}>
-                <Button variant="primary" size="md">
+            {!isAuthenticated && !isFeatured ? (
+              <Link
+                to={`/login?redirect=${encodeURIComponent(`/polls/${id}`)}`}
+                state={{ from: { pathname: `/polls/${id}` } }}
+              >
+                <Button variant="primary" size="md" className="font-bold">
                   Sign In to Vote
                 </Button>
               </Link>
@@ -363,6 +553,7 @@ export const PollDetails = () => {
                 disabled={!selectedOption || voting}
                 isLoading={voting}
                 onClick={handleVote}
+                className="font-bold shadow-lg shadow-indigo-600/20"
               >
                 Submit Vote
               </Button>

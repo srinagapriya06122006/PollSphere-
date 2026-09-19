@@ -65,8 +65,8 @@ export const RealtimeSection = () => {
           <h2 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-slate-100 tracking-tight">
             Built for Real-Time Interaction
           </h2>
-          <p className="text-sm sm:text-base text-slate-600 dark:text-slate-400 font-medium leading-relaxed">
-            PulsePoll uses real-time communication to synchronize genuine votes and results without requiring users to refresh the page.
+          <p className="text-sm text-slate-600 dark:text-slate-400 font-medium leading-relaxed">
+            PollSphere uses real-time communication to synchronize genuine votes and results without requiring users to refresh the page.
           </p>
         </div>
 

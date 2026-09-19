@@ -42,7 +42,7 @@ export const WhatYouCanDoSection = () => {
             Core Capabilities
           </span>
           <h2 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-slate-100 tracking-tight">
-            What Can You Do With PulsePoll?
+            What Can You Do With PollSphere?
           </h2>
           <p className="text-sm text-slate-600 dark:text-slate-400 font-medium">
             Everything you need to gather opinions and view results live.

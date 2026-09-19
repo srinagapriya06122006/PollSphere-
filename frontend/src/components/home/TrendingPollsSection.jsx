@@ -4,97 +4,7 @@ import { Flame, ArrowRight, Compass, Vote, Clock, Activity, CheckCircle2, User }
 import pollService from '../../services/pollService'
 import PollCard from '../poll/PollCard'
 import Button from '../common/Button'
-
-// Realistic fallback public polls in case database is empty or API is loading
-const FALLBACK_TRENDING_POLLS = [
-  {
-    id: 'poll-trend-1',
-    question: 'Which framework is best for full-stack web development in 2026?',
-    category: 'technology',
-    creator_name: 'Alex Chen',
-    status: 'active',
-    total_votes: 342,
-    expires_at: new Date(Date.now() + 86400000 * 3).toISOString(),
-    options: [
-      { id: '1', text: 'Next.js / React', votes: 168 },
-      { id: '2', text: 'Go + HTMX / React', votes: 94 },
-      { id: '3', text: 'SvelteKit', votes: 52 },
-      { id: '4', text: 'Nuxt / Vue', votes: 28 },
-    ],
-  },
-  {
-    id: 'poll-trend-2',
-    question: 'Should colleges replace traditional exams with project portfolios?',
-    category: 'education',
-    creator_name: 'Prof. Ananya Roy',
-    status: 'active',
-    total_votes: 518,
-    expires_at: new Date(Date.now() + 86400000 * 5).toISOString(),
-    options: [
-      { id: '1', text: 'Yes, 100% project-based', votes: 310 },
-      { id: '2', text: 'Hybrid 50/50 balance', votes: 172 },
-      { id: '3', text: 'No, exams test core theory', votes: 36 },
-    ],
-  },
-  {
-    id: 'poll-trend-3',
-    question: 'Will Autonomous AI Coding Agents replace junior developers by 2028?',
-    category: 'technology',
-    creator_name: 'Siddharth Rao',
-    status: 'active',
-    total_votes: 689,
-    expires_at: new Date(Date.now() + 86400000 * 2).toISOString(),
-    options: [
-      { id: '1', text: 'No, they will augment engineers', votes: 412 },
-      { id: '2', text: 'Yes, entry roles will shrink', votes: 198 },
-      { id: '3', text: 'Unsure / Too early to tell', votes: 79 },
-    ],
-  },
-  {
-    id: 'poll-trend-4',
-    question: 'Who will win the ICC Cricket World Trophy this season?',
-    category: 'sports',
-    creator_name: 'Rahul K.',
-    status: 'active',
-    total_votes: 420,
-    expires_at: new Date(Date.now() + 86400000 * 4).toISOString(),
-    options: [
-      { id: '1', text: 'India', votes: 240 },
-      { id: '2', text: 'Australia', votes: 110 },
-      { id: '3', text: 'England', votes: 45 },
-      { id: '4', text: 'South Africa', votes: 25 },
-    ],
-  },
-  {
-    id: 'poll-trend-5',
-    question: 'Favorite Cloud Platform for Personal Side Projects and Startups?',
-    category: 'technology',
-    creator_name: 'DevCommunity',
-    status: 'active',
-    total_votes: 275,
-    expires_at: new Date(Date.now() + 86400000 * 6).toISOString(),
-    options: [
-      { id: '1', text: 'Vercel / Supabase', votes: 130 },
-      { id: '2', text: 'AWS Free Tier', votes: 72 },
-      { id: '3', text: 'Render / Railway', votes: 48 },
-      { id: '4', text: 'Self-hosted VPS / Docker', votes: 25 },
-    ],
-  },
-  {
-    id: 'poll-trend-6',
-    question: 'What is the most anticipated movie or video game release of the year?',
-    category: 'entertainment',
-    creator_name: 'Maya Lin',
-    status: 'active',
-    total_votes: 194,
-    expires_at: new Date(Date.now() + 86400000 * 7).toISOString(),
-    options: [
-      { id: '1', text: 'Grand Theft Auto VI', votes: 112 },
-      { id: '2', text: 'Spider-Man Beyond the Spider-Verse', votes: 52 },
-      { id: '3', text: 'Dune: Part Three', votes: 30 },
-    ],
-  },
-]
+import { FEATURED_POLLS } from '../../data/featuredPolls'
 
 export const TrendingPollsSection = () => {
   const [polls, setPolls] = useState([])
@@ -107,11 +17,11 @@ export const TrendingPollsSection = () => {
         if (data?.polls && data.polls.length > 0) {
           setPolls(data.polls)
         } else {
-          setPolls(FALLBACK_TRENDING_POLLS)
+          setPolls(FEATURED_POLLS)
         }
       } catch (err) {
         // Graceful fallback to rich sample community polls so recruiters never see an empty box
-        setPolls(FALLBACK_TRENDING_POLLS)
+        setPolls(FEATURED_POLLS)
       } finally {
         setLoading(false)
       }
