@@ -8,12 +8,12 @@ export const FinalCTASection = () => {
   const { isAuthenticated } = useAuth()
 
   return (
-    <section className="w-full py-16 sm:py-20 bg-white dark:bg-gradient-to-b dark:from-slate-900/40 dark:via-indigo-950/20 dark:to-slate-950 border-t border-slate-200/60 dark:border-slate-800/80 transition-colors duration-200">
+    <section className="w-full py-16 sm:py-20 bg-white dark:bg-[#020617] border-t border-slate-200 dark:border-slate-800/80 transition-colors duration-200">
       <div className="max-w-3xl mx-auto px-4 sm:px-6 text-center space-y-6">
-        <h2 className="text-3xl sm:text-4xl font-black text-slate-900 dark:text-slate-100 tracking-tight">
+        <h2 className="text-3xl sm:text-4xl font-black text-slate-900 dark:text-white tracking-tight">
           Ready to see what your community thinks?
         </h2>
-        <p className="text-base sm:text-lg text-slate-600 dark:text-slate-300 max-w-xl mx-auto font-medium leading-relaxed">
+        <p className="text-base sm:text-lg text-slate-600 dark:text-slate-400 max-w-xl mx-auto font-medium leading-relaxed">
           Create a poll and start collecting responses in real time.
         </p>
 
@@ -36,7 +36,7 @@ export const FinalCTASection = () => {
             <Button
               variant="outline"
               size="lg"
-              className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3.5 text-sm sm:text-base font-bold border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800"
+              className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3.5 text-sm sm:text-base font-bold border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800"
             >
               <Compass className="w-4 h-4 text-indigo-500" />
               Explore Polls
