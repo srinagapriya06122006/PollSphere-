@@ -1173,24 +1173,3 @@ This project is licensed under the MIT License.
 </p>
 ```
 
-### Important changes I made
-
-Your original README is technically detailed, but I changed a few things intentionally:
-
-* Removed the phrase **“sub-millisecond voting feedback”** because that is a performance claim you should only make if you have benchmark evidence.
-* Changed **“enterprise-grade”** to a professional project description rather than making an unsupported enterprise claim.
-* Removed overly complicated architecture wording where it didn't help a reviewer.
-* Added **Live Demo** at the top so a recruiter can immediately open the project.
-* Added a clear **Core User Flow**, which directly demonstrates the internship requirement.
-* Added a clean **Internship Requirement Coverage** table.
-* Added **Project Structure**.
-* Added a dedicated **Application Preview** section where you can place screenshots.
-* Kept the important technical details: **Go, Gin, React, MongoDB, Redis, WebSockets, JWT, bcrypt, Google Sign-In, AI insights**.
-* Kept the README focused on what an interviewer needs to understand quickly.
-
-Your GitHub README should look like a **professional software project**, not like a technical audit report.
-
-
-## 📜 License
-
-This project is licensed under the [MIT License](LICENSE).
