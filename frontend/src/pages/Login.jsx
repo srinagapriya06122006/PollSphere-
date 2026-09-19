@@ -68,7 +68,11 @@ export const Login = () => {
       await login(normalizedEmail, formData.password)
       navigate(fromPath, { replace: true })
     } catch (err) {
-      setServerError(err.customMessage || err.response?.data?.message || 'Invalid email or password')
+      if (err.customMessage === 'Network Error' || err.message === 'Network Error') {
+        setServerError('Unable to connect to backend server (http://localhost:8080). Please check your connection or backend status.')
+      } else {
+        setServerError(err.customMessage || err.response?.data?.message || 'Invalid email or password. If you do not have an account yet, please sign up.')
+      }
     } finally {
       setLoading(false)
     }
