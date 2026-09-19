@@ -3,7 +3,6 @@ import { Link } from 'react-router-dom'
 import { PlusCircle, Compass, CheckCircle2 } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import Button from '../common/Button'
-import LivePollPreview from './LivePollPreview'
 
 export const HeroSection = () => {
   const { isAuthenticated } = useAuth()
@@ -11,9 +10,9 @@ export const HeroSection = () => {
   return (
     <section className="relative w-full min-h-[calc(100vh-64px)] flex flex-col justify-between pt-6 pb-4 sm:pt-8 sm:pb-6 lg:py-6 overflow-hidden">
       <div className="max-w-[1500px] w-full mx-auto px-4 sm:px-8 lg:px-12 my-auto">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
-          {/* Left Column: ~55% width (lg:col-span-7) */}
-          <div className="lg:col-span-7 space-y-5 sm:space-y-6 text-center lg:text-left">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10 items-center">
+          {/* Left Column: ~50% width (lg:col-span-6) */}
+          <div className="lg:col-span-6 space-y-5 sm:space-y-6 text-center lg:text-left z-10">
             {/* Real-time Badge with Pulsing Green Beacon */}
             <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-500/10 dark:bg-emerald-500/15 border border-emerald-500/30 text-emerald-700 dark:text-emerald-400 text-xs font-bold tracking-wide shadow-sm">
               <span className="relative flex h-2 w-2">
@@ -32,7 +31,7 @@ export const HeroSection = () => {
             </h1>
 
             {/* Description */}
-            <p className="text-base sm:text-lg text-slate-600 dark:text-slate-300 max-w-2xl mx-auto lg:mx-0 font-normal leading-relaxed">
+            <p className="text-base sm:text-lg text-slate-600 dark:text-slate-300 max-w-xl mx-auto lg:mx-0 font-normal leading-relaxed">
               Create live polls, collect instant responses, and discover what your community thinks — all in real time with zero reload latency.
             </p>
 
@@ -81,9 +80,18 @@ export const HeroSection = () => {
             </div>
           </div>
 
-          {/* Right Column: ~45% width (lg:col-span-5) */}
-          <div className="lg:col-span-5 flex justify-center w-full">
-            <LivePollPreview />
+          {/* Right Column: ~50% width (lg:col-span-6) — Professional PollSphere Visual */}
+          <div className="lg:col-span-6 flex items-center justify-center w-full relative">
+            {/* Subtle ambient neon glow matching PollSphere theme */}
+            <div className="absolute -inset-6 bg-gradient-to-tr from-indigo-600/25 via-purple-600/20 to-pink-500/10 rounded-3xl blur-3xl -z-10 pointer-events-none" />
+
+            <div className="relative w-full max-w-md sm:max-w-lg lg:max-w-none flex items-center justify-center">
+              <img
+                src="/pollsphere-hero-mockup.png"
+                alt="PollSphere Real-Time Polling Platform"
+                className="w-full h-auto max-h-[460px] lg:max-h-[500px] object-contain rounded-2xl drop-shadow-[0_25px_50px_rgba(79,70,229,0.3)] select-none pointer-events-none"
+              />
+            </div>
           </div>
         </div>
       </div>
