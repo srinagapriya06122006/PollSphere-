@@ -120,17 +120,12 @@ export const Footer = () => {
             </ul>
           </div>
 
-          {/* Company Links */}
+          {/* Community & Code Links */}
           <div className="space-y-3">
             <h4 className="text-xs font-bold uppercase tracking-wider text-slate-900 dark:text-slate-200">
-              Company
+              Project
             </h4>
             <ul className="space-y-2 font-medium">
-              <li>
-                <Link to="/about" className="hover:text-indigo-600 dark:hover:text-indigo-400 transition">
-                  About PollSphere
-                </Link>
-              </li>
               <li>
                 <a
                   href="https://github.com/srinagapriya06122006/PollSphere-"
@@ -139,26 +134,32 @@ export const Footer = () => {
                   className="hover:text-indigo-600 dark:hover:text-indigo-400 transition flex items-center gap-1.5"
                 >
                   <Github className="w-3.5 h-3.5" />
-                  GitHub Repo
+                  GitHub Repository
                 </a>
               </li>
               <li>
                 <a
-                  href="mailto:contact@pollsphere.io"
+                  href="https://github.com/srinagapriya06122006"
+                  target="_blank"
+                  rel="noreferrer"
                   className="hover:text-indigo-600 dark:hover:text-indigo-400 transition flex items-center gap-1.5"
                 >
-                  <Mail className="w-3.5 h-3.5" />
-                  Contact & Support
+                  Developer Profile
+                </a>
+              </li>
+              <li>
+                <a
+                  href="https://github.com/srinagapriya06122006/PollSphere-/issues"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="hover:text-indigo-600 dark:hover:text-indigo-400 transition flex items-center gap-1.5"
+                >
+                  Issues & Feedback
                 </a>
               </li>
               <li>
                 <span className="cursor-pointer hover:text-indigo-600 dark:hover:text-indigo-400 transition">
-                  Privacy Policy
-                </span>
-              </li>
-              <li>
-                <span className="cursor-pointer hover:text-indigo-600 dark:hover:text-indigo-400 transition">
-                  Terms of Service
+                  MIT License
                 </span>
               </li>
             </ul>
@@ -166,12 +167,27 @@ export const Footer = () => {
         </div>
 
         {/* Bottom Bar */}
-        <div className="pt-6 border-t border-slate-100 dark:border-slate-800/80 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500 dark:text-slate-400 font-medium">
-          <p>&copy; {new Date().getFullYear()} PollSphere Inc. All rights reserved.</p>
-          <div className="flex items-center gap-4">
-            <span className="flex items-center gap-1">
-              Engineered with <Heart className="w-3.5 h-3.5 text-rose-500 fill-rose-500" /> for real-time consensus
-            </span>
+        <div className="pt-6 border-t border-slate-100 dark:border-slate-800/80 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500 dark:text-slate-400 font-medium text-center sm:text-left">
+          <p>&copy; {new Date().getFullYear()} PollSphere. All rights reserved.</p>
+
+          {/* Subtle Ownership Credit */}
+          <div className="flex items-center gap-1.5 text-xs">
+            <span className="text-slate-500 dark:text-slate-400">Designed &amp; Developed by</span>
+            <a
+              href="https://github.com/srinagapriya06122006"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-semibold text-slate-700 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors inline-flex items-center gap-1 hover:underline underline-offset-2"
+            >
+              <span>Srinagapriya A</span>
+              <Github className="w-3 h-3 text-slate-400" />
+            </a>
+          </div>
+
+          <div className="flex items-center gap-1 text-[11px] text-slate-400 dark:text-slate-500">
+            <span>Built with</span>
+            <Heart className="w-3 h-3 text-rose-500 fill-rose-500" />
+            <span>for real-time consensus</span>
           </div>
         </div>
       </div>
