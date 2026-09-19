@@ -105,8 +105,8 @@ export const Register = () => {
   }
 
   return (
-    <div className="max-w-md mx-auto py-12">
-      <Card className="p-8">
+    <div className="max-w-md mx-auto py-6 sm:py-12 px-2 sm:px-0">
+      <Card className="p-6 sm:p-8">
         <div className="text-center space-y-2 mb-8">
           <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center mx-auto border border-emerald-500/20">
             <UserPlus className="w-6 h-6" />
