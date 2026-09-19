@@ -1,6 +1,6 @@
 import React from 'react'
 import { Link } from 'react-router-dom'
-import { BarChart3, Github, Mail, ShieldCheck, Heart } from 'lucide-react'
+import { Github, Radio, Heart } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 
 export const Footer = () => {
@@ -9,9 +9,9 @@ export const Footer = () => {
   return (
     <footer className="mt-auto border-t border-slate-200 dark:border-slate-800/80 bg-white dark:bg-slate-950 text-slate-500 dark:text-slate-400 text-xs transition-colors duration-200">
       <div className="max-w-[1500px] w-full mx-auto px-4 sm:px-8 lg:px-12 py-12">
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-8 mb-10">
-          {/* Brand & Mission (Col 1-2 on mobile, Col 1 on desktop) */}
-          <div className="col-span-2 space-y-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-8 mb-10">
+          {/* Brand Column (Col 1-2) */}
+          <div className="md:col-span-2 space-y-4">
             <Link to="/" className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl overflow-hidden bg-slate-900 border border-indigo-500/30 flex items-center justify-center shadow-md shadow-indigo-600/20">
                 <img
@@ -33,20 +33,20 @@ export const Footer = () => {
               </div>
             </Link>
             <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed font-medium max-w-sm">
-              The high-performance, real-time polling platform designed for communities, classrooms, and modern engineering teams.
+              High-concurrency live polling platform powered by Go, Gin, WebSockets, Redis Pub/Sub, and React.
             </p>
 
-            {/* Live System Status Pill */}
+            {/* Authentic Live System Status Pill */}
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 font-bold text-[11px]">
               <span className="relative flex h-2 w-2">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
               </span>
-              <span>All Systems Operational • 99.9% Uptime</span>
+              <span>All Systems Operational • Real-Time Engine Active</span>
             </div>
           </div>
 
-          {/* Product Links */}
+          {/* Product Column */}
           <div className="space-y-3">
             <h4 className="text-xs font-bold uppercase tracking-wider text-slate-900 dark:text-slate-200">
               Product
@@ -59,14 +59,6 @@ export const Footer = () => {
               </li>
               <li>
                 <Link
-                  to={isAuthenticated ? '/analytics' : '/login?redirect=/analytics'}
-                  className="hover:text-indigo-600 dark:hover:text-indigo-400 transition"
-                >
-                  Live Analytics
-                </Link>
-              </li>
-              <li>
-                <Link
                   to={isAuthenticated ? '/create-poll' : '/login?redirect=/create-poll'}
                   className="hover:text-indigo-600 dark:hover:text-indigo-400 transition"
                 >
@@ -74,19 +66,22 @@ export const Footer = () => {
                 </Link>
               </li>
               <li>
-                <a href="#features" className="hover:text-indigo-600 dark:hover:text-indigo-400 transition">
-                  Core Features
-                </a>
+                <Link
+                  to={isAuthenticated ? '/analytics' : '/login?redirect=/analytics'}
+                  className="hover:text-indigo-600 dark:hover:text-indigo-400 transition"
+                >
+                  Analytics
+                </Link>
               </li>
               <li>
-                <a href="#how-it-works" className="hover:text-indigo-600 dark:hover:text-indigo-400 transition">
-                  How It Works
+                <a href="#features" className="hover:text-indigo-600 dark:hover:text-indigo-400 transition">
+                  Features
                 </a>
               </li>
             </ul>
           </div>
 
-          {/* Resources Links */}
+          {/* Resources Column */}
           <div className="space-y-3">
             <h4 className="text-xs font-bold uppercase tracking-wider text-slate-900 dark:text-slate-200">
               Resources
@@ -94,43 +89,38 @@ export const Footer = () => {
             <ul className="space-y-2 font-medium">
               <li>
                 <a href="#how-it-works" className="hover:text-indigo-600 dark:hover:text-indigo-400 transition">
+                  How It Works
+                </a>
+              </li>
+              <li>
+                <a
+                  href="https://github.com/srinagapriya06122006/PollSphere-#readme"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="hover:text-indigo-600 dark:hover:text-indigo-400 transition"
+                >
                   Documentation
                 </a>
               </li>
               <li>
-                <span className="cursor-pointer hover:text-indigo-600 dark:hover:text-indigo-400 transition">
-                  WebSocket & REST API
-                </span>
-              </li>
-              <li>
-                <span className="cursor-pointer hover:text-indigo-600 dark:hover:text-indigo-400 transition">
-                  Community FAQ
-                </span>
-              </li>
-              <li>
-                <span className="cursor-pointer hover:text-indigo-600 dark:hover:text-indigo-400 transition">
-                  Architecture Overview
-                </span>
-              </li>
-              <li>
-                <span className="cursor-pointer hover:text-indigo-600 dark:hover:text-indigo-400 transition">
-                  Release Notes (v2.4)
-                </span>
+                <a
+                  href="https://github.com/srinagapriya06122006/PollSphere-#-system-architecture"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="hover:text-indigo-600 dark:hover:text-indigo-400 transition"
+                >
+                  Architecture
+                </a>
               </li>
             </ul>
           </div>
 
-          {/* Company Links */}
+          {/* Project Column */}
           <div className="space-y-3">
             <h4 className="text-xs font-bold uppercase tracking-wider text-slate-900 dark:text-slate-200">
-              Company
+              Project
             </h4>
             <ul className="space-y-2 font-medium">
-              <li>
-                <Link to="/about" className="hover:text-indigo-600 dark:hover:text-indigo-400 transition">
-                  About PollSphere
-                </Link>
-              </li>
               <li>
                 <a
                   href="https://github.com/srinagapriya06122006/PollSphere-"
@@ -139,27 +129,13 @@ export const Footer = () => {
                   className="hover:text-indigo-600 dark:hover:text-indigo-400 transition flex items-center gap-1.5"
                 >
                   <Github className="w-3.5 h-3.5" />
-                  GitHub Repo
+                  GitHub Repository
                 </a>
               </li>
               <li>
-                <a
-                  href="mailto:contact@pollsphere.io"
-                  className="hover:text-indigo-600 dark:hover:text-indigo-400 transition flex items-center gap-1.5"
-                >
-                  <Mail className="w-3.5 h-3.5" />
-                  Contact & Support
-                </a>
-              </li>
-              <li>
-                <span className="cursor-pointer hover:text-indigo-600 dark:hover:text-indigo-400 transition">
-                  Privacy Policy
-                </span>
-              </li>
-              <li>
-                <span className="cursor-pointer hover:text-indigo-600 dark:hover:text-indigo-400 transition">
-                  Terms of Service
-                </span>
+                <Link to="/explore" className="hover:text-indigo-600 dark:hover:text-indigo-400 transition">
+                  About PollSphere
+                </Link>
               </li>
             </ul>
           </div>
@@ -167,7 +143,7 @@ export const Footer = () => {
 
         {/* Bottom Bar */}
         <div className="pt-6 border-t border-slate-100 dark:border-slate-800/80 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500 dark:text-slate-400 font-medium">
-          <p>&copy; {new Date().getFullYear()} PollSphere Inc. All rights reserved.</p>
+          <p>&copy; {new Date().getFullYear()} PollSphere. Open-source enterprise polling platform.</p>
           <div className="flex items-center gap-4">
             <span className="flex items-center gap-1">
               Engineered with <Heart className="w-3.5 h-3.5 text-rose-500 fill-rose-500" /> for real-time consensus
