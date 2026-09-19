@@ -1,67 +1,95 @@
-# ⚡ Live Polling Application — Enterprise Real-Time Platform
+# 🌐 PollSphere — Enterprise Real-Time Polling & Analytics Platform
 
-> A high-performance, enterprise-grade, real-time live polling and analytics application built with **Go 1.24 (Gin Clean Architecture)**, **MongoDB 8.0**, **Redis 7.0 (Cache-Aside, Sliding-Window Rate Limiting & Pub/Sub)**, **WebSockets (Gorilla)**, and **React 18 (Vite + Tailwind CSS + Recharts)**.
+[![Vercel Deployment](https://img.shields.io/badge/Frontend-Vercel-black?style=for-the-badge&logo=vercel)](https://poll-sphere-beta.vercel.app)
+[![Go Gin](https://img.shields.io/badge/Backend-Go%201.24%20Gin-00ADD8?style=for-the-badge&logo=go)](https://golang.org)
+[![MongoDB](https://img.shields.io/badge/Database-MongoDB%208.0-47A248?style=for-the-badge&logo=mongodb)](https://mongodb.com)
+[![Redis](https://img.shields.io/badge/Cache-Redis%207.0-DC382D?style=for-the-badge&logo=redis)](https://redis.io)
+[![React Vite](https://img.shields.io/badge/Frontend-React%2018%20%2B%20Vite-61DAFB?style=for-the-badge&logo=react)](https://reactjs.org)
+[![Google Identity](https://img.shields.io/badge/Auth-Google%20OAuth%202.0-4285F4?style=for-the-badge&logo=google)](https://developers.google.com/identity)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](LICENSE)
+
+> **Live Demo**: [https://poll-sphere-beta.vercel.app](https://poll-sphere-beta.vercel.app)  
+> **Repository**: [https://github.com/srinagapriya06122006/PollSphere-](https://github.com/srinagapriya06122006/PollSphere-)
+
+---
+
+## 📖 Overview
+
+**PollSphere** is a high-concurrency, enterprise-grade polling, voting, and real-time analytics platform. Engineered with a **Go (Gin Clean Architecture)** backend and a **React 18 (Vite + Tailwind CSS + Recharts)** frontend, PollSphere delivers sub-millisecond voting feedback, live multi-client WebSocket synchronization via Redis Pub/Sub, robust dual authentication (Strict Gmail validation & Google OAuth 2.0), automated poll expiration, and AI-driven poll insights.
 
 ---
 
 ## 📑 Table of Contents
-1. [System Architecture & Clean Design](#-system-architecture--clean-design)
-2. [What Has Been Built (Placement-Focused Features)](#-what-has-been-built-placement-focused-features)
-3. [Key Architecture Modules](#-key-architecture-modules)
-   - [1. Real-Time WebSocket & Redis Pub/Sub Synchronization](#1-real-time-websocket--redis-pubsub-synchronization)
-   - [2. Production SaaS Landing Page & Navigation Design](#2-production-saas-landing-page--navigation-design)
-   - [3. Critical Route Protection & Authentication Architecture (`<ProtectedRoute />`)](#3-critical-route-protection--authentication-architecture-protectedroute-)
-   - [4. Analytics & Interactive Visual Dashboard (Recharts)](#4-analytics--interactive-visual-dashboard-recharts)
-   - [5. Persistent Notification Center](#5-persistent-notification-center)
-   - [6. Background Poll Expiry Scheduler](#6-background-poll-expiry-scheduler)
-   - [7. Role-Based Access Control (RBAC) & Audit Logs](#7-role-based-access-control-rbac--audit-logs)
-   - [8. AI Poll Insights Engine (Gemini + Heuristic Fallback)](#8-ai-poll-insights-engine-gemini--heuristic-fallback)
-   - [9. Enterprise Health Monitoring & Telemetry](#9-enterprise-health-monitoring--telemetry)
-   - [10. Poll Cloning & Reusable Poll Templates](#10-poll-cloning--reusable-poll-templates)
-   - [11. Export Reports & Dynamic QR Sharing](#11-export-reports--dynamic-qr-sharing)
+1. [Key Features](#-key-features)
+2. [System Architecture](#-system-architecture)
+3. [Dual Authentication System](#-dual-authentication-system)
 4. [Technology Stack](#-technology-stack)
 5. [Database Design & MongoDB Indexes](#-database-design--mongodb-indexes)
 6. [API & WebSocket Route Reference](#-api--websocket-route-reference)
-7. [Frontend Routing & Access Control Matrix](#-frontend-routing--access-control-matrix)
-8. [Docker Compose & Microservices (Local Container Commands)](#-docker-compose--microservices)
+7. [Frontend Routing & Access Control](#-frontend-routing--access-control)
+8. [Environment Variables](#-environment-variables)
 9. [Getting Started Locally](#-getting-started-locally)
-10. [Cloud Deployment Guide (Vercel + Render + MongoDB Atlas)](#-cloud-deployment-guide-vercel--render--mongodb-atlas)
-11. [Automated Testing Suite](#-automated-testing-suite)
-12. [System Design & Interview Q&A](#-system-design--interview-qa)
+10. [Cloud Deployment Guide](#-cloud-deployment-guide)
+11. [Automated Testing](#-automated-testing)
+12. [System Design Highlights](#-system-design-highlights)
+13. [Author](#-author)
 
 ---
 
-## 🏛 System Architecture & Clean Design
+## 🌟 Key Features
+
+| Feature | Description | Layer |
+|---|---|---|
+| **Google Sign-In (OAuth 2.0)** | One-click login via Google Identity Services (GIS) with generic button, auto-profile sync, and JWT exchange | Full Stack |
+| **Strict Gmail Validation** | Enforces valid `username@gmail.com` on frontend & backend, rejecting typos or invalid domains | Security |
+| **Real-Time WebSockets** | Instant live vote tally broadcasting across clients via Gorilla WebSockets | Backend + Frontend |
+| **Redis Pub/Sub Scaling** | Horizontal WebSocket message synchronization across multi-instance backend nodes | Distributed Cache |
+| **Zero Double-Voting** | Atomic uniqueness guaranteed by MongoDB compound index `{ poll_id: 1, user_id: 1 }` | Database Engine |
+| **Interactive Analytics** | Real-time Recharts dashboards (Votes/Day, Category Distribution, Top Polls, Status metrics) | Frontend + Aggregations |
+| **AI Poll Insights** | Automated poll outcome analysis & recommendations powered by Google Gemini API & heuristics | Go Service + React |
+| **Poll Expiration Worker** | Background Go cron scheduler that auto-closes polls and notifies creators | Go Goroutine |
+| **One-Click Poll Cloning** | Clone questions, choices, and settings to quickly spin up recurring surveys | Backend + Frontend |
+| **Survey Templates** | 5 built-in presets (Tech Stack, Customer Feedback, Hackathon Voting, Team Standup, Sports) | Frontend UI |
+| **Persistent Notification Center** | Real-time alerts for vote milestones, poll closings, and admin announcements | MongoDB + React |
+| **Role-Based Access Control (RBAC)** | Granular `user` and `admin` roles, administrative moderation, and security audit logs | Gin Middleware |
+| **Sliding-Window Rate Limiting** | Redis-powered rate limiter (120 req/min) preventing API abuse and DDoS | Gin Middleware |
+| **Report Exporting & QR Code** | Export results to CSV/JSON and instant SVG QR code generation for mobile voting | React Utilities |
+
+---
+
+## 🏛 System Architecture
 
 The application adheres to Go **Clean Architecture** principles, maintaining strict separation of concerns across handlers, services, repositories, models, and domain entities:
 
 ```mermaid
 flowchart TD
-    subgraph Clients["Frontend Tier (React 18 SPA + Vite)"]
+    subgraph Clients["Frontend Tier (React 18 SPA + Vite on Vercel)"]
         Browser["React Client / Lucide / Recharts"]
         WSClient["WebSocket Live Client"]
         Guard["ProtectedRoute Auth Guard\n(Zero-Flicker Session Check)"]
+        GoogleAuth["Google Identity Services (GIS)"]
     end
 
-    subgraph ReverseProxy["Nginx Web Server (:3000)"]
-        Nginx["Nginx SPA Router & Asset Cache"]
+    subgraph ReverseProxy["Nginx / Vercel Edge"]
+        VercelCDN["Vercel SPA Rewrites (vercel.json)"]
     end
 
-    subgraph BackendEngine["Go (Gin) Backend API Cluster (:8080)"]
+    subgraph BackendEngine["Go (Gin) Backend API Cluster (Render :8080)"]
         Router["Gin Router Engine"]
         Middlewares["Middlewares\n- JWT Auth (HS256)\n- RBAC (Admin/User)\n- Redis Rate Limiter (120 req/min)\n- CORS"]
-        Handlers["Handler Controllers\n- Auth & User Profile\n- Poll & Clone Controller\n- Vote & Aggregation\n- Notifications & Auditing\n- Health & Analytics\n- AI Insights (Gemini)"]
-        Services["Domain Services Layer\n- AuthService & JWTService\n- PollService & VoteService\n- NotificationService\n- SchedulerService (Cron)\n- AuditService & AIService"]
+        Handlers["Handler Controllers\n- Auth & User Profile\n- Google OAuth Controller\n- Poll & Clone Controller\n- Vote & Aggregation\n- Notifications & Auditing\n- Health & Analytics\n- AI Insights (Gemini)"]
+        Services["Domain Services Layer\n- AuthService & GoogleService\n- PollService & VoteService\n- NotificationService\n- SchedulerService (Cron)\n- AuditService & AIService"]
         WSHub["WebSocket Room Manager\n- Goroutine Hub Engine"]
     end
 
     subgraph DataStorage["Data & Cache Layer"]
-        MongoDB[("MongoDB 8.0\n- users, polls, votes\n- notifications, audit_logs\n- Compound UK Indexes")]
-        Redis[("Redis 7.0 In-Memory\n- Cache-Aside (5-Min TTL)\n- Sliding-Window Rate Limiting\n- Pub/Sub: poll:updates:*")]
+        MongoDB[("MongoDB 8.0 (Atlas)\n- users, polls, votes\n- notifications, audit_logs\n- Compound UK Indexes")]
+        Redis[("Redis 7.0 In-Memory (Render / Upstash)\n- Cache-Aside (5-Min TTL)\n- Sliding-Window Rate Limiting\n- Pub/Sub: poll:updates:*")]
     end
 
     Clients --> Guard
-    Guard --> Nginx
+    Guard --> VercelCDN
+    GoogleAuth --> Handlers
     Browser -->|HTTP REST APIs + Bearer JWT| Middlewares
     WSClient <-->|WebSocket Stream /ws/polls/:id| WSHub
     Middlewares --> Router
@@ -74,399 +102,242 @@ flowchart TD
 
 ---
 
-## 🌟 What Has Been Built (Placement-Focused Features)
+## 🔐 Dual Authentication System
 
-| Feature | Implementation Highlights | Layer |
-|---|---|---|
-| **Production SaaS Landing Page** | Streamlined wide desktop layout (`max-w-[1500px]`) with static hero preview, core capabilities, 3-step guide, real-time architecture, and analytics preview | Frontend (React) |
-| **Strict Route Protection** | `<ProtectedRoute />` guarding private pages, zero-flicker loading state, and `/login?redirect=` return navigation | Frontend (React Router v6) |
-| **Real-Time Polling** | WebSocket room broadcasting + Redis Pub/Sub for horizontal scaling | Backend (Go) + Frontend (React) |
-| **Concurrency Safety** | MongoDB unique compound index `{ poll_id: 1, user_id: 1 }` preventing double-voting | Database + Service |
-| **Analytics Dashboard** | Interactive `recharts` charts (Votes per Day, Category Distribution, Top 5 Polls, Status) | Frontend + MongoDB Aggregation |
-| **Persistent Notifications** | MongoDB `notifications` collection with live unread badge, mark read, and delete | Go + MongoDB + React Bell |
-| **Poll Expiry Scheduler** | Go background cron worker auto-closing expired polls with WebSocket broadcasts | Go Background Goroutine |
-| **Poll Cloning** | One-click duplication (`POST /api/polls/:id/clone`) of questions & choices | Go + MongoDB + React |
-| **Poll Templates** | 5 pre-configured survey templates (Technology, Feedback, Hackathon, Sports, Retrospective) | React UI Component |
-| **User Activity Timeline** | Chronological audit feed of created polls and votes cast (`GET /api/users/timeline`) | Go + MongoDB + React Profile |
-| **Role-Based Access Control** | `admin` vs `user` roles with protected audit logs & administrative deletion | Gin Middleware + Admin Portal |
-| **Security Audit Logs** | Comprehensive `audit_logs` tracking IP, user, action, target resource, and timestamps | Go + MongoDB Collection |
-| **Rate Limiter** | Redis sliding-window counter limiting requests to 120 req/minute with in-memory fallback | Gin Middleware |
-| **Realistic AI Insights** | Google Gemini API + statistical heuristic fallback analyzing winning margins & recommendations | Go Service + React Card |
-| **Health Monitoring** | Dedicated `/health`, `/health/mongo`, and `/health/redis` telemetry endpoints | Go Handlers + Dashboard Badge |
-| **Report Exporting & QR** | Client-side CSV/JSON export + zero-dependency SVG QR code generator for mobile sharing | React Modals + Canvas |
+PollSphere supports two secure, modern authentication pathways:
+
+### 1. Google OAuth 2.0 (Google Identity Services)
+* **Generic Button**: Clean `Continue with Google` interface without displaying personalized name/email directly on the page.
+* **Token Verification**: Google ID Token (JWT) is sent to backend `POST /api/auth/google`, verified against Google's TokenInfo endpoint with audience check (`aud == GOOGLE_CLIENT_ID`).
+* **Auto-Provisioning**: New users are provisioned with Google profile picture, name, verified email, and `auth_provider: "google"`. Existing users are seamlessly linked.
+* **PollSphere JWT**: Returns a standard PollSphere Bearer JWT token with zero difference in session handling.
+
+### 2. Strict Gmail Address + Password Authentication
+* **Regex Format**: Only valid Gmail formats allowed (`^[a-zA-Z0-9._]+@gmail\.com$`).
+* Rejects typos like `abc@gmail.commmmm`, `user@gmail.c`, and non-Gmail domains.
+* Passwords hashed using industry-standard **bcrypt** (cost 10).
 
 ---
 
-## 🧩 Key Architecture Modules
-
-### 1. Real-Time WebSocket & Redis Pub/Sub Synchronization
-- **WebSocket Hub**: Manages rooms keyed by `poll_id`.
-- **Redis Pub/Sub**: When a vote is recorded or a poll expires, an event is published to Redis channel `poll:updates:<poll_id>`. All backend instances receive the event and broadcast to active WebSocket clients.
-
-### 2. Production SaaS Landing Page & Navigation Design
-PulsePoll follows a strict **"Explain + Show on Home, Perform on Application Pages"** product architecture:
-- **No Fake Interactive Demos**: The Home page contains zero simulated voting, fake vote counters, or mock WebSocket events. Actual polling occurs on the real application routes (`/polls/:id`).
-- **Wide Desktop Grid (1400px–1500px)**: The container uses `max-w-[1500px] w-full mx-auto px-4 sm:px-8 lg:px-12`, eliminating narrow centered wrappers and providing an industrial SaaS appearance.
-- **Core 5-Section Layout**:
-  1. **Hero**: Wide 2-column layout (~55% left / ~45% right).
-     - Left: Value proposition (*"Ask. Vote. See What People Think."*), direct navigation CTAs (*Create Your First Poll*, *Explore Polls*), and three trust points (*Easy to create*, *Real-time voting*, *Instant results*).
-     - Right: **Static Product Preview** labeled `PRODUCT PREVIEW`, `Sample Results`, and `Sample response distribution` with no interactive click handlers.
-  2. **Core Capabilities**: Wide 4-column balanced cards:
-     - *Create Live Polls*: "Create questions and answer choices in seconds."
-     - *Collect Votes*: "Let your audience participate from any device."
-     - *See Results in Real Time*: "Watch genuine responses update instantly."
-     - *Understand Your Audience*: "Use analytics to understand participation and trends."
-  3. **How PulsePoll Works**: Wide horizontal 3-step visual guide (*01 Create*, *02 Share*, *03 Discover*) connected by an aesthetic desktop line.
-  4. **Real-Time Architecture**: Static 7-step architecture diagram:
-     `Voter` ➔ `Vote Request` ➔ `Go Backend` ➔ `MongoDB` ➔ `Redis Pub/Sub` ➔ `WebSocket` ➔ `Updated Results`
-     with clear technology tags for **Go**, **MongoDB**, **Redis**, and **WebSocket**.
-  5. **Analytics Preview**: Compact 2-column showcase labeled `SAMPLE ANALYTICS PREVIEW` highlighting *Participation trends*, *Category breakdowns*, and *Poll response analysis*, with an *Explore Analytics* CTA.
-- **Compact Professional Footer**: 4-column layout including brand tagline, Product links, Account links, Technology stack, and `© 2026 PulsePoll`.
-
-### 3. Critical Route Protection & Authentication Architecture (`<ProtectedRoute />`)
-Unauthenticated visitors can **never** access private application routes, even by manually typing URLs in the browser address bar:
-- **Zero-Flicker Loading Gate**: `<ProtectedRoute />` checks `loading` state from `AuthContext` before rendering. While verifying session tokens against `GET /api/auth/me`, a loading indicator prevents brief flashes of private content.
-- **Guarded Navigation & Return URL**: Unauthenticated access attempts to protected routes redirect immediately to `/login?redirect=${encodeURIComponent(path)}`. Upon successful login or registration, the user is returned to their requested page.
-- **Dual-Tier Protection**:
-  - **Frontend SPA**: React Router wrappers block route rendering.
-  - **Backend REST API**: Gin `middleware.AuthMiddleware(jwtService)` validates Bearer JWT signatures, rejecting unauthenticated API calls with HTTP `401 Unauthorized`.
-- **Smart Navbar & CTAs**:
-  - Unauthenticated visitors see: *Home*, *Explore Polls*, *How It Works*, *Features*, *Sign In* (`/login`), and *Create a Poll* (`/register?redirect=/create-poll`).
-  - Authenticated users see: *Dashboard*, *Explore Polls*, *Analytics*, *Leaderboard*, *My Polls*, *Create Poll*, *Notification Bell*, and *User Profile*.
-
-### 4. Analytics & Interactive Visual Dashboard (Recharts)
-- **Votes Per Day**: Smooth `AreaChart` with gradient fill showcasing activity velocity.
-- **Polls Per Category**: `BarChart` categorized by Technology, Education, Sports, Entertainment, and General.
-- **Top 5 Polls**: Horizontal engagement leaderboard `BarChart`.
-- **Poll Status Distribution**: Donut `PieChart` contrasting active vs closed polls.
-
-### 5. Persistent Notification Center
-- Persistent notifications collection storing:
-  ```json
-  {
-    "_id": "ObjectId",
-    "user_id": "ObjectId",
-    "title": "Poll Closed (Expired)",
-    "message": "Your poll reached its scheduled expiration time.",
-    "type": "poll_expired",
-    "link": "/polls/66e8...",
-    "is_read": false,
-    "created_at": "2026-09-17T18:00:00Z"
-  }
-  ```
-- Interactive header bell dropdown with real-time updates and one-click mark all as read.
-
-### 6. Background Poll Expiry Scheduler
-- Background goroutine ticking every 15s querying `expires_at <= now` and `status == "active"`.
-- Closes expired polls atomically, invalidates cache, logs audit entry, pushes persistent notification to creator, and broadcasts WebSocket event to open tabs.
-
-### 7. Role-Based Access Control (RBAC) & Audit Logs
-- Roles: `user` (default) and `admin`.
-- Endpoint `/api/admin/audit-logs` protected by `RequireRole(model.RoleAdmin)` middleware.
-- Structured auditing captures: `timestamp`, `user_id`, `user_email`, `action` (`vote_cast`, `poll_create`, `poll_expire`, `poll_delete`, `user_login`), `resource`, `details`, `ip_address`.
-
-### 8. AI Poll Insights Engine (Gemini + Heuristic Fallback)
-- Evaluates poll distributions and outputs structured analytical feedback:
-  - **Executive Summary**
-  - **Key Takeaways**
-  - **Winning Option & Margin Analysis**
-  - **Vote Distribution Analysis**
-  - **Actionable Recommendations**
-
-### 9. Enterprise Health Monitoring & Telemetry
-- `GET /health` & `GET /api/health`: Overall system readiness.
-- `GET /health/mongo` & `GET /api/health/mongo`: MongoDB ping connectivity.
-- `GET /health/redis` & `GET /api/health/redis`: Redis cache & Pub/Sub status.
-- Real-time telemetry badges displayed directly in the Analytics Dashboard.
-
-### 10. Poll Cloning & Reusable Poll Templates
-- **Clone Feature**: Replicates question, options, and category into a fresh active poll.
-- **Quick Templates**: 5 one-click survey templates built into the poll creation interface.
-
-### 11. Export Reports & Dynamic QR Sharing
-- Export results to CSV or JSON formats.
-- Built-in SVG QR Code generator enabling mobile participants to scan and vote instantly.
-
----
-
-## 🛠 Technology Stack
+## 💻 Technology Stack
 
 ### Backend
-- **Language**: Go 1.24 (High-concurrency compiled binary)
-- **Web Framework**: Gin Gonic v1.10
-- **Database**: MongoDB Go Driver v2 (Document persistence & aggregation pipeline)
-- **Cache & Pub/Sub**: Go-Redis v9 (Sub-millisecond caching & Pub/Sub messaging)
-- **Real-Time**: Gorilla WebSocket v1.5 (RFC 6455 compliant)
-- **Security**: `golang-jwt/jwt/v5` (HS256) & `golang.org/x/crypto/bcrypt`
+* **Language**: Go 1.24
+* **Web Framework**: Gin Web Framework (`github.com/gin-gonic/gin`)
+* **Real-Time**: Gorilla WebSocket (`github.com/gorilla/websocket`)
+* **Database Driver**: Official Go Mongo Driver (`go.mongodb.org/mongo-driver`)
+* **Cache & Pub/Sub**: Go-Redis (`github.com/redis/go-redis/v9`)
+* **Authentication**: JWT (`github.com/golang-jwt/jwt/v5`) + Bcrypt
+* **AI Integration**: Google Generative AI (Gemini)
+* **Validation**: Go Playground Validator
 
 ### Frontend
-- **Framework**: React 18 SPA with Vite 6
-- **Styling**: Tailwind CSS 3 (Dark/light glassmorphic UI)
-- **Data Visualization**: Recharts v2 (Responsive Area, Bar, and Pie charts)
-- **Icons**: Lucide React
-- **Routing**: React Router v6 with `<ProtectedRoute />` Auth Guards
-
-### Infrastructure
-- **Containerization**: Docker & Docker Compose
-- **Web Server / Reverse Proxy**: Nginx Alpine
+* **Core**: React 18 + Vite
+* **Styling**: Tailwind CSS + Modern Glassmorphism + Dark Palette
+* **Icons**: Lucide React
+* **Charts**: Recharts (Bar, Pie, Line, Area charts)
+* **Routing**: React Router v6
+* **Notifications**: React Hot Toast + Persistent MongoDB Notification Center
+* **Auth**: Google Identity Services SDK (`accounts.google.com/gsi/client`)
 
 ---
 
 ## 🗄 Database Design & MongoDB Indexes
 
-```mermaid
-erDiagram
-    USERS ||--o{ POLLS : creates
-    USERS ||--o{ VOTES : casts
-    USERS ||--o{ NOTIFICATIONS : receives
-    USERS ||--o{ AUDIT_LOGS : triggers
-    POLLS ||--o{ VOTES : contains
+| Collection | Schema Highlights | Indexes |
+|---|---|---|
+| `users` | `name`, `email`, `password`, `role`, `auth_provider`, `google_id`, `profile_image`, `created_at` | `email` (Unique), `google_id` (Sparse Unique) |
+| `polls` | `title`, `description`, `creator_id`, `category`, `choices[]`, `status`, `expires_at`, `tags[]` | `creator_id`, `category`, `status`, `created_at` |
+| `votes` | `poll_id`, `choice_id`, `user_id`, `created_at` | **`{ poll_id: 1, user_id: 1 }` (Compound Unique)** |
+| `notifications` | `user_id`, `title`, `message`, `type`, `read`, `created_at` | `user_id`, `{ user_id: 1, read: 1 }` |
+| `audit_logs` | `user_id`, `action`, `resource`, `resource_id`, `ip_address`, `timestamp` | `user_id`, `action`, `timestamp` |
 
-    USERS {
-        ObjectID _id PK
-        string name
-        string email UK "Index: unique_user_email"
-        string password "bcrypt hash"
-        string role "admin | user"
-        date created_at
-    }
-
-    POLLS {
-        ObjectID _id PK
-        string question
-        string category "Index: category"
-        array options "Array of { id, text }"
-        ObjectID creator_id FK "Index: creator_id"
-        string creator_name
-        string status "active | closed (Index: status)"
-        date expires_at "Index: expires_at"
-        date created_at "Index: created_at"
-    }
-
-    VOTES {
-        ObjectID _id PK
-        ObjectID poll_id FK "Compound UK: { poll_id: 1, user_id: 1 }"
-        string option_id
-        ObjectID user_id FK "Compound UK: { poll_id: 1, user_id: 1 }"
-        date created_at
-    }
-
-    NOTIFICATIONS {
-        ObjectID _id PK
-        ObjectID user_id FK "Index: user_id"
-        string title
-        string message
-        string type
-        string link
-        bool is_read "Index: is_read"
-        date created_at "Index: created_at"
-    }
-
-    AUDIT_LOGS {
-        ObjectID _id PK
-        ObjectID user_id FK "Index: user_id"
-        string user_email
-        string action "Index: action"
-        string resource_type
-        string resource_id
-        string details
-        string ip_address
-        date timestamp "Index: timestamp"
-    }
-```
+> **Concurrency Safety**: The compound unique index on `{ poll_id: 1, user_id: 1 }` strictly rejects duplicate votes at the database engine level (Error `E11000`), guaranteeing zero double-voting under concurrent race conditions.
 
 ---
 
 ## 📡 API & WebSocket Route Reference
 
-### Health & Telemetry
-| Method | Endpoint | Description | Auth Required |
-| :--- | :--- | :--- | :--- |
-| `GET` | `/health` / `/api/health` | Comprehensive system health status | No |
-| `GET` | `/health/mongo` / `/api/health/mongo` | MongoDB connection status | No |
-| `GET` | `/health/redis` / `/api/health/redis` | Redis connection & cache status | No |
-
-### Authentication & User Profile
-| Method | Endpoint | Description | Auth Required |
-| :--- | :--- | :--- | :--- |
-| `POST` | `/api/auth/register` | Register new user account | No |
-| `POST` | `/api/auth/login` | Login and receive JWT token | No |
-| `GET` | `/api/auth/me` | Fetch authenticated profile & validate session | **Yes (JWT)** |
-| `GET` | `/api/users/profile` | Aggregated user metrics & statistics | **Yes (JWT)** |
-| `PUT` | `/api/users/profile` | Update display name / password | **Yes (JWT)** |
-| `GET` | `/api/users/votes` | Fetch user voting history | **Yes (JWT)** |
-| `GET` | `/api/users/timeline` | Fetch user activity timeline | **Yes (JWT)** |
-
-### Persistent Notifications
-| Method | Endpoint | Description | Auth Required |
-| :--- | :--- | :--- | :--- |
-| `GET` | `/api/notifications` | Fetch user notifications & unread count | **Yes (JWT)** |
-| `PUT` | `/api/notifications/read-all` | Mark all notifications as read | **Yes (JWT)** |
-| `PUT` | `/api/notifications/:id/read` | Mark individual notification as read | **Yes (JWT)** |
-| `DELETE` | `/api/notifications/:id` | Delete notification | **Yes (JWT)** |
+### Authentication
+* `POST /api/auth/register` — Register with name, valid Gmail address, and password
+* `POST /api/auth/login` — Sign in with Gmail address and password
+* `POST /api/auth/google` — Authenticate via Google ID token (returns JWT & user profile)
+* `GET /api/auth/me` — Retrieve current authenticated user profile
 
 ### Polls & Voting
-| Method | Endpoint | Description | Auth Required |
-| :--- | :--- | :--- | :--- |
-| `GET` | `/api/polls` | List public polls (search, category, sort) | No |
-| `GET` | `/api/polls/:id` | Get poll details | No |
-| `POST` | `/api/polls` | Create new live poll | **Yes (JWT)** |
-| `POST` | `/api/polls/:id/clone` | Duplicate / clone poll | **Yes (JWT)** |
-| `PUT` | `/api/polls/:id` | Update poll status / question | **Yes (Owner/Admin)** |
-| `DELETE` | `/api/polls/:id` | Delete poll and associated votes | **Yes (Owner/Admin)** |
-| `POST` | `/api/polls/:id/vote` | Cast authenticated vote for option | **Yes (JWT)** |
-| `GET` | `/api/polls/:id/results` | Aggregated results & percentages | No (Optional JWT) |
-| `GET` | `/api/polls/:id/export` | Export results as CSV report | No |
-| `POST` | `/api/polls/:id/ai-insights` | Generate AI poll insights & summary | No |
+* `GET /api/polls` — List active public polls with pagination, search, and category filters
+* `POST /api/polls` — Create a new poll *(Protected)*
+* `GET /api/polls/:id` — Fetch poll details and choices
+* `PUT /api/polls/:id` — Update poll title/description/expiry *(Creator/Admin)*
+* `DELETE /api/polls/:id` — Delete poll and associated votes *(Creator/Admin)*
+* `POST /api/polls/:id/vote` — Cast a vote on a specific choice *(Protected)*
+* `GET /api/polls/:id/results` — Fetch aggregated results (cached in Redis)
+* `POST /api/polls/:id/clone` — Duplicate an existing poll *(Protected)*
+* `GET /api/polls/:id/insights` — Generate AI/statistical insights for poll results
 
-### Administrator Portal (RBAC Protected)
-| Method | Endpoint | Description | Role Required |
-| :--- | :--- | :--- | :--- |
-| `GET` | `/api/admin/audit-logs` | Fetch system audit logs with pagination | **Admin** |
-| `GET` | `/api/admin/users` | List registered system users | **Admin** |
-| `DELETE` | `/api/admin/polls/:id` | Admin poll moderation & removal | **Admin** |
+### Real-Time WebSocket
+* `GET /api/ws/polls/:id` — Upgrade connection to WebSocket stream for live vote updates
 
-### Real-Time WebSocket Feed
-| Protocol | Endpoint | Description |
-| :--- | :--- | :--- |
-| `WS` | `/api/ws/polls/:id` | Real-time WebSocket connection for live vote updates & expiry events |
+### Analytics & User Profile
+* `GET /api/analytics/overview` — Platform statistics (total polls, votes, active users)
+* `GET /api/users/my-polls` — List polls created by the logged-in user *(Protected)*
+* `GET /api/users/timeline` — Fetch chronological activity timeline *(Protected)*
+* `GET /api/users/leaderboard` — Top poll creators and community rankings
 
----
-
-## 🔒 Frontend Routing & Access Control Matrix
-
-| Route Path | Route Component | Access Level | Unauthenticated Behavior |
-| :--- | :--- | :--- | :--- |
-| `/` | `HomePage` | **Public** | Displays SaaS landing page (Never auto-redirects to Dashboard) |
-| `/explore` | `CommunityPolls` | **Public** | Allows discovering public polls |
-| `/polls/:id` | `PollDetails` | **Public** | Allows viewing questions and real-time results |
-| `/login` | `Login` | **Public** | Preserves `?redirect=` return destination |
-| `/register` | `Register` | **Public** | Preserves `?redirect=` return destination |
-| `/dashboard` | `Dashboard` | **Protected** | Redirects to `/login?redirect=%2Fdashboard` |
-| `/analytics` | `AnalyticsPage` | **Protected** | Redirects to `/login?redirect=%2Fanalytics` |
-| `/leaderboard` | `Leaderboard` | **Protected** | Redirects to `/login?redirect=%2Fleaderboard` |
-| `/my-polls` | `MyPolls` | **Protected** | Redirects to `/login?redirect=%2Fmy-polls` |
-| `/create-poll` | `CreatePoll` | **Protected** | Redirects to `/login?redirect=%2Fcreate-poll` |
-| `/profile` | `Profile` | **Protected** | Redirects to `/login?redirect=%2Fprofile` |
-| `/admin` | `AdminDashboard` | **Protected (Admin)** | Redirects to `/login?redirect=%2Fadmin` |
+### Notifications & System
+* `GET /api/notifications` — Fetch user notifications *(Protected)*
+* `PATCH /api/notifications/:id/read` — Mark notification as read *(Protected)*
+* `DELETE /api/notifications/:id` — Remove notification *(Protected)*
+* `GET /health` — Health check endpoint (MongoDB, Redis, and server status)
 
 ---
 
-## 🐳 Docker Compose & Microservices
+## 🧭 Frontend Routing & Access Control
 
-Start the full stack in containerized production mode:
+| Route | Component | Access Level | Description |
+|---|---|---|---|
+| `/` | `Home.jsx` | Public | SaaS Landing page with hero, live preview, and features |
+| `/login` | `Login.jsx` | Public | Email & Google sign-in with redirect target preservation |
+| `/register` | `Register.jsx` | Public | Account creation with strict Gmail verification |
+| `/explore` | `Explore.jsx` | Public | Browse public community polls |
+| `/polls/:id` | `PollDetails.jsx` | Public | View poll details, cast vote, and watch live results |
+| `/dashboard` | `Dashboard.jsx` | Protected | User hub, recent activity, quick actions |
+| `/create-poll` | `CreatePoll.jsx` | Protected | Poll creator with choices, timer, category, and templates |
+| `/my-polls` | `MyPolls.jsx` | Protected | Management dashboard for user's created polls |
+| `/analytics` | `AnalyticsDashboard.jsx` | Protected | Visual data analytics with interactive Recharts |
+| `/leaderboard` | `Leaderboard.jsx` | Protected | Community engagement leaderboard |
+| `/profile` | `Profile.jsx` | Protected | User profile, Google account status, activity timeline |
+| `/admin` | `AdminPortal.jsx` | Admin | Administrative moderation, user management, audit logs |
 
-```bash
-docker compose up --build -d
+---
+
+## ⚙️ Environment Variables
+
+### Frontend (`frontend/.env`)
+```env
+# Backend API base URL
+VITE_API_BASE_URL=https://<your-render-backend>.onrender.com/api
+
+# WebSocket base URL
+VITE_WS_BASE_URL=wss://<your-render-backend>.onrender.com/api/ws
+
+# Google OAuth 2.0 Client ID (public identifier)
+VITE_GOOGLE_CLIENT_ID=your_google_client_id.apps.googleusercontent.com
 ```
 
-| Service | Container Name | Port Mapping | Healthcheck Command |
-| :--- | :--- | :--- | :--- |
-| **mongodb** | `guvi-mongodb` | `27017:27017` | `mongosh --eval "db.adminCommand('ping')"` |
-| **redis** | `guvi-redis` | `6379:6379` | `redis-cli ping` |
-| **backend** | `guvi-backend` | `8080:8080` | Built with Alpine binary runner |
-| **frontend** | `guvi-frontend` | `3000:80` | Nginx SPA web server |
+### Backend (`backend/.env`)
+```env
+# Server Port
+PORT=8080
+GIN_MODE=release
 
-### 🔍 Container Shell Access Commands
+# MongoDB Connection URI
+MONGO_URI=mongodb+srv://<username>:<password>@cluster0.mongodb.net/pollsphere?retryWrites=true&w=majority
+MONGO_DB=pollsphere
 
-To interact directly with the database or cache containers:
+# Redis Connection URI
+REDIS_URL=rediss://default:<password>@<your-redis-host>:6379
 
-```bash
-# Connect to MongoDB Shell (mongosh)
-docker exec -it guvi-mongodb mongosh
+# JWT Secret Key
+JWT_SECRET=your_super_secret_jwt_key_here
+JWT_EXPIRY_HOURS=72
 
-# Connect to Redis CLI
-docker exec -it guvi-redis redis-cli
+# Google OAuth 2.0 Credentials (Backend only)
+GOOGLE_CLIENT_ID=your_google_client_id.apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=your_google_client_secret
 
-# View Backend Logs
-docker logs -f guvi-backend
+# AI Insights (Optional)
+GEMINI_API_KEY=your_gemini_api_key_here
 ```
 
-Access URLs:
-- **Frontend SPA**: `http://localhost:3000` (or `http://localhost:5173` via Vite dev server)
-- **Backend REST API**: `http://localhost:8080/api`
-- **Health Telemetry**: `http://localhost:8080/health`
+> [!CAUTION]
+> Never commit `GOOGLE_CLIENT_SECRET` or `JWT_SECRET` to Git or public repositories. The client secret must **only** be configured as an environment variable in your backend hosting platform (e.g. Render).
 
 ---
 
 ## 🚀 Getting Started Locally
 
-### 1. Start MongoDB and Redis
+### Prerequisites
+* **Go 1.24+**: [Download Go](https://go.dev/dl/)
+* **Node.js 18+ & npm**: [Download Node](https://nodejs.org/)
+* **MongoDB**: Local MongoDB instance or free [MongoDB Atlas](https://www.mongodb.com/atlas) cluster
+* **Redis**: Local Redis or free [Upstash Redis](https://upstash.com/) instance
+
+### 1. Clone the Repository
 ```bash
-docker run -d --name guvi-mongodb -p 27017:27017 mongo:8
-docker run -d --name guvi-redis -p 6379:6379 redis:7-alpine
+git clone https://github.com/srinagapriya06122006/PollSphere-.git
+cd PollSphere-
 ```
 
-### 2. Start Go Backend
+### 2. Run the Backend
 ```bash
 cd backend
 cp .env.example .env
+# Update .env with your MongoDB URI, Redis URL, and Google Client ID
 go mod download
-go run ./cmd/api
-# Backend runs on http://localhost:8080
+go run ./cmd/server/main.go
 ```
+The Go backend will start on `http://localhost:8080`.
 
-### 3. Start React Frontend
+### 3. Run the Frontend
 ```bash
-cd frontend
+cd ../frontend
 cp .env.example .env
+# Ensure VITE_API_BASE_URL=http://localhost:8080/api and VITE_GOOGLE_CLIENT_ID are set
 npm install
 npm run dev
-# Frontend runs on http://localhost:5173
+```
+Open `http://localhost:5173` in your browser.
+
+---
+
+## ☁️ Cloud Deployment Guide
+
+```
+Google Cloud (OAuth)
+       │
+       ▼
+Vercel (Frontend SPA)
+VITE_GOOGLE_CLIENT_ID
+VITE_API_BASE_URL
+       │
+       ▼
+Render (Backend API Cluster)
+GOOGLE_CLIENT_ID
+GOOGLE_CLIENT_SECRET
+MONGO_URI / REDIS_URL
+       │
+       ▼
+MongoDB Atlas & Redis
 ```
 
----
+### 1. Google Cloud Console
+1. Create a project in [Google Cloud Console](https://console.cloud.google.com/).
+2. Navigate to **APIs & Services** > **Credentials** > **OAuth 2.0 Client IDs**.
+3. Under **Authorized JavaScript origins**, add:
+   - `http://localhost:5173` (for local development)
+   - `https://poll-sphere-beta.vercel.app` (your Vercel production domain)
+4. Copy your **Client ID** (for frontend & backend) and **Client Secret** (for backend only).
 
-## ☁️ Cloud Deployment Guide (Vercel + Render + MongoDB Atlas)
+### 2. Frontend on Vercel
+1. Connect repository on [Vercel](https://vercel.com).
+2. Set Root Directory: `frontend`.
+3. Add Environment Variables:
+   - `VITE_API_BASE_URL` = `https://<your-backend>.onrender.com/api`
+   - `VITE_WS_BASE_URL` = `wss://<your-backend>.onrender.com/api/ws`
+   - `VITE_GOOGLE_CLIENT_ID` = `your_google_client_id.apps.googleusercontent.com`
+4. Deploy! All SPA routes are automatically handled by `vercel.json`.
 
-PulsePoll is architected for zero-downtime, scalable cloud hosting on modern cloud platforms:
-
-### 1. Database: MongoDB Atlas (Free Cloud M0 Tier)
-1. Register at [MongoDB Atlas](https://www.mongodb.com/cloud/atlas/register) and create a free **M0 Cluster** (e.g., `taxpalCluster`).
-2. **Database Access**: Create a database user (e.g., `pollsphere_admin`) with `readWriteAnyDatabase` permissions.
-3. **Network Access**: Add `0.0.0.0/0` (Allow Access from Anywhere) to the IP Access List so Render can communicate with the cluster.
-4. **Connection String**: Under **Connect** $\rightarrow$ **Drivers**, copy the SRV URI:
-   ```text
-   mongodb+srv://<username>:<password>@<cluster>.mongodb.net/polling_app?retryWrites=true&w=majority
-   ```
-
-### 2. Backend: Render.com (Go Web Service / Docker)
-Deploy the Go backend as a containerized Web Service on [Render](https://render.com):
-* **Repository**: Connect your GitHub repository (`PollSphere-`).
-* **Root Directory**: `backend`
-* **Runtime**: `Docker`
-* **Dockerfile Path**: `Dockerfile`
-* **Instance Type**: Free ($0/month)
-* **Environment Variables**:
-  | Key | Recommended Value | Purpose |
-  | :--- | :--- | :--- |
-  | `APP_ENV` | `production` | Enables production telemetry and logging |
-  | `GIN_MODE` | `release` | Disables Gin debugging mode for maximum throughput |
-  | `MONGO_DB_NAME` | `polling_app` | Target MongoDB database |
-  | `MONGO_URI` | `mongodb+srv://...` | Your MongoDB Atlas connection string |
-  | `JWT_SECRET` | *(Random 32+ chars)* | Cryptographic HMAC-SHA256 signing secret |
-  | `JWT_EXPIRY_HOURS` | `24` | Token lifespan |
-  | `REDIS_ENABLED` | `false` | Fallback to MongoDB if no external cloud Redis is configured |
-  | `PORT` | `10000` | Injected dynamically by Render |
-
-### 3. Frontend: Vercel (React 18 SPA)
-Deploy the frontend client on [Vercel](https://vercel.com):
-* **Repository**: Connect your GitHub repository.
-* **Root Directory**: `frontend`
-* **Framework Preset**: `Vite`
-* **Build Command**: `npm run build`
-* **Output Directory**: `dist`
-* **Install Command**: `npm install`
-* **SPA Routing (`vercel.json`)**: Included in repository root and `frontend/` to rewrite all paths (`/(.*)`) to `/index.html` preventing 404 errors on browser page refresh.
-* **Environment Variables**:
-  | Key | Value |
-  | :--- | :--- |
-  | `VITE_API_BASE_URL` | `https://<your-render-backend>.onrender.com/api` |
-  | `VITE_WS_BASE_URL` | `wss://<your-render-backend>.onrender.com/api/ws` |
+### 3. Backend on Render
+1. Create a **Web Service** on [Render](https://render.com).
+2. Root Directory: `backend`.
+3. Build Command: `go build -o server ./cmd/server/main.go`.
+4. Start Command: `./server`.
+5. Add Environment Variables: `MONGO_URI`, `MONGO_DB`, `REDIS_URL`, `JWT_SECRET`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`.
 
 ---
 
-## 🧪 Automated Testing Suite
+## 🧪 Automated Testing
 
 Execute the Go test suite across handlers, services, middlewares, and models:
 
@@ -475,41 +346,31 @@ cd backend
 go test -v ./...
 ```
 
-### Verified Test Cases:
-- ✅ `TestJWTService_GenerateAndValidateToken`: Token creation and HMAC-SHA256 signature verification.
-- ✅ `TestJWTService_InvalidTokenSignature`: Signature tampering prevention.
-- ✅ `TestJWTService_ExpiredToken`: Automatic rejection of expired tokens.
-- ✅ `TestAuthMiddleware_MissingHeader` & `TestAuthMiddleware_ValidToken`: Bearer header injection & context parsing.
-- ✅ `TestAuthHandler_Register_DuplicateEmail`: 409 Conflict validation on existing emails.
-- ✅ `TestVoteHandler_CastVote_AlreadyVoted`: Double-voting rejection.
-- ✅ `TestVoteHandler_CastVote_ClosedPoll`: Rejection of votes on closed polls.
+Verified Test Coverage:
+- ✅ **Token Management**: Creation, HMAC-SHA256 signature verification, and expiration handling.
+- ✅ **Middleware Security**: Bearer header validation, malformed token rejection, and role-based permissions.
+- ✅ **Validation Guardrails**: Duplicate email prevention, strict Gmail format validation.
+- ✅ **Concurrency Safety**: Double-voting rejection and closed poll voting prevention.
 
 ---
 
-## 💡 System Design & Interview Q&A
+## 💡 System Design Highlights
 
-### 1. How does the application guarantee zero double-voting under concurrent race conditions?
-> **Answer:** Double-voting prevention operates at two layers:
-> 1. **Application Logic**: The service layer checks for existing votes with `{ poll_id, user_id }`.
-> 2. **Database Engine**: In MongoDB, a **unique compound index** on `{ poll_id: 1, user_id: 1 }` guarantees atomic constraint enforcement. If two requests execute simultaneously, MongoDB accepts one insert and rejects the second with error `E11000`, returned as HTTP `409 Conflict`.
+1. **Atomic Concurrency Control**: Double-voting is prevented at both the service layer and database engine layer using a compound unique index `{ poll_id: 1, user_id: 1 }`.
+2. **Distributed WebSocket Scaling**: Multiple Go backend nodes communicate via Redis Pub/Sub channels (`poll:updates:<poll_id>`), allowing users connected to different servers to receive real-time vote updates instantaneously.
+3. **Cache-Aside Result Acceleration**: Poll results are cached in Redis with a 5-minute TTL. Casting a vote immediately invalidates the cache (`DEL poll:results:<id>`), ensuring subsequent reads always reflect the latest tallies.
+4. **Background Cron Expiration**: A dedicated Go background goroutine monitors expiring polls, transitions their status to `closed`, invalidates caches, notifies authors, and broadcasts `POLL_EXPIRED` to all active viewers.
 
-### 2. How does Redis Pub/Sub allow WebSockets to scale horizontally across multiple backend instances?
-> **Answer:** In a multi-node cluster, Client A might be connected to Node 1 while Client B is connected to Node 2. When a vote arrives on Node 1, Node 1 records the vote and publishes a message to Redis channel `poll:updates:<poll_id>`. All backend nodes subscribe to Redis channels. Node 2 receives the Redis message and immediately broadcasts the updated tally to its local WebSocket clients.
+---
 
-### 3. How does PulsePoll enforce route security on both frontend SPA and backend REST APIs?
-> **Answer:**
-> - **Frontend (User Experience Guard)**: Private routes (`/dashboard`, `/analytics`, `/leaderboard`, `/my-polls`, `/create-poll`) are wrapped in `<ProtectedRoute />`. Before rendering, it checks the authentication token. If unauthenticated, it immediately redirects to `/login?redirect=<url>` with zero screen flickering. Unauthenticated users see public pages (`/`, `/explore`, `/polls/:id`).
-> - **Backend (Data Integrity & Authorization)**: Frontend protection alone is never trusted. Every write or private query endpoint (`POST /api/polls`, `/api/users/*`, `/api/admin/*`, `/api/notifications/*`) passes through Gin's `AuthMiddleware(jwtService)`. If the request lacks a valid, unexpired JWT signature, the backend immediately returns HTTP `401 Unauthorized`.
+## 👤 Author
 
-### 4. How does the Cache-Aside pattern work for Poll Results?
-> **Answer:**
-> - **Read**: `GET /api/polls/:id/results` checks Redis key `poll:results:<id>`. If found (Cache Hit), returns in <1ms. If absent (Cache Miss), computes via MongoDB aggregation pipeline and caches in Redis with a 5-minute TTL.
-> - **Write / Invalidation**: When a vote is cast, `VoteService` immediately calls `DEL poll:results:<id>` in Redis before publishing the real-time update.
-
-### 5. How does the Background Scheduler handle poll expiration?
-> **Answer:** A Go cron worker ticks periodically in a background goroutine. It queries MongoDB for active polls where `expires_at <= now`, sets their status to `closed`, invalidates the Redis cache, writes an audit record, dispatches a persistent notification to the creator, and broadcasts a `POLL_EXPIRED` WebSocket event to all open viewer tabs.
+**Srinagapriya**  
+* GitHub: [@srinagapriya06122006](https://github.com/srinagapriya06122006)  
+* Project: [PollSphere-](https://github.com/srinagapriya06122006/PollSphere-)
 
 ---
 
 ## 📜 License
-This project is open-source software licensed under the [MIT License](LICENSE).
+
+This project is licensed under the [MIT License](LICENSE).
