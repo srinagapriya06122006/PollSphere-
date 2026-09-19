@@ -22,15 +22,15 @@ export const WhatYouCanDoSection = () => {
       icon: BarChart3,
       iconColor: 'text-emerald-600 dark:text-emerald-400',
       bgColor: 'bg-emerald-50 dark:bg-emerald-950/60 border-emerald-200/60 dark:border-emerald-800/60',
-      title: 'See Results in Real Time',
-      description: 'Watch genuine responses update instantly.',
+      title: 'Real-Time Results',
+      description: 'Watch genuine responses update instantly via WebSockets.',
     },
     {
       icon: Users,
       iconColor: 'text-amber-600 dark:text-amber-400',
       bgColor: 'bg-amber-50 dark:bg-amber-950/60 border-amber-200/60 dark:border-amber-800/60',
-      title: 'Understand Your Audience',
-      description: 'Use analytics to understand participation and trends.',
+      title: 'Analytics',
+      description: 'Explore participation trends and category breakdowns.',
     },
   ]
 
