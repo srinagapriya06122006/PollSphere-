@@ -96,19 +96,19 @@ export const Login = () => {
           <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center mx-auto border border-emerald-500/20">
             <LogIn className="w-6 h-6" />
           </div>
-          <h1 className="text-2xl font-bold text-slate-100">Welcome Back</h1>
-          <p className="text-xs text-slate-400">Sign in to your account with your Gmail address</p>
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Welcome Back</h1>
+          <p className="text-xs text-slate-600 dark:text-slate-400">Sign in to your account with your Gmail address</p>
         </div>
 
         {isRedirected && (
-          <div className="mb-6 p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-300 text-xs text-center font-medium">
+          <div className="mb-6 p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-700 dark:text-amber-300 text-xs text-center font-medium">
             Please sign in to access that page
           </div>
         )}
 
         {serverError && (
-          <div className="mb-6 p-4 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-300 text-xs flex items-center gap-2.5">
-            <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
+          <div className="mb-6 p-4 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-700 dark:text-rose-300 text-xs flex items-center gap-2.5">
+            <AlertCircle className="w-4 h-4 text-rose-500 dark:text-rose-400 shrink-0" />
             <span>{serverError}</span>
           </div>
         )}
@@ -156,10 +156,10 @@ export const Login = () => {
 
         <div className="relative my-5 text-center">
           <div className="absolute inset-0 flex items-center">
-            <div className="w-full border-t border-slate-700/60" />
+            <div className="w-full border-t border-slate-200 dark:border-slate-700/60" />
           </div>
           <div className="relative flex justify-center text-xs uppercase">
-            <span className="bg-slate-900/95 px-3 text-slate-400 font-semibold tracking-wider">
+            <span className="bg-white dark:bg-slate-900 px-3 text-slate-500 dark:text-slate-400 font-semibold tracking-wider">
               Or continue with
             </span>
           </div>
@@ -169,11 +169,11 @@ export const Login = () => {
           <GoogleSignInButton />
         </div>
 
-        <p className="text-center text-xs text-slate-400 mt-6">
+        <p className="text-center text-xs text-slate-600 dark:text-slate-400 mt-6">
           Don't have an account?{' '}
           <Link
             to={redirectQuery ? `/register?redirect=${encodeURIComponent(redirectQuery)}` : '/register'}
-            className="text-emerald-400 hover:underline font-semibold"
+            className="text-indigo-600 dark:text-emerald-400 hover:underline font-semibold"
           >
             Sign Up
           </Link>

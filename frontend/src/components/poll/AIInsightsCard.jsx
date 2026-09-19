@@ -21,7 +21,7 @@ export const AIInsightsCard = ({ pollId, totalVotes }) => {
   }
 
   return (
-    <div className="bg-gradient-to-br from-indigo-900/10 via-purple-900/5 to-slate-900/10 dark:from-indigo-950/40 dark:via-purple-950/20 dark:to-slate-900/40 rounded-2xl border border-indigo-200/60 dark:border-indigo-800/40 p-6 backdrop-blur-sm relative overflow-hidden transition-all shadow-sm">
+    <div className="bg-gradient-to-br from-indigo-50/80 via-purple-50/50 to-white dark:from-indigo-950/40 dark:via-purple-950/20 dark:to-slate-900/40 rounded-2xl border border-indigo-200/60 dark:border-indigo-800/40 p-6 backdrop-blur-sm relative overflow-hidden transition-all shadow-sm">
       {/* Subtle Background Glow */}
       <div className="absolute -top-12 -right-12 w-48 h-48 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
 

@@ -93,10 +93,10 @@ export const CommunityPolls = () => {
   return (
     <div className="space-y-6">
       {/* SaaS Hero Banner */}
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-indigo-900/30 via-slate-900/60 to-purple-900/20 border border-slate-200/80 dark:border-slate-800 p-8 sm:p-10 shadow-xl dark:shadow-black/40">
-        <div className="absolute top-0 right-0 -mt-8 -mr-8 w-64 h-64 bg-indigo-500/15 rounded-full blur-3xl pointer-events-none" />
+      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-indigo-50/90 via-purple-50/70 to-indigo-100/80 dark:from-slate-900 dark:via-indigo-950/40 dark:to-slate-900 border border-indigo-200/80 dark:border-slate-800/80 p-8 sm:p-10 shadow-xl dark:shadow-black/40 transition-colors duration-200">
+        <div className="absolute top-0 right-0 -mt-8 -mr-8 w-64 h-64 bg-indigo-500/10 dark:bg-indigo-500/20 rounded-full blur-3xl pointer-events-none" />
         <div className="relative z-10 max-w-2xl space-y-4">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 text-xs font-bold shadow-sm">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30 text-xs font-bold shadow-sm">
             <span className="relative flex h-2 w-2">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
               <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
@@ -104,7 +104,7 @@ export const CommunityPolls = () => {
             <span>COMMUNITY INSIGHTS HUB</span>
           </div>
 
-          <h1 className="text-2xl sm:text-4xl font-black font-['Outfit',sans-serif] text-slate-900 dark:text-slate-100 tracking-tight leading-tight">
+          <h1 className="text-2xl sm:text-4xl font-black font-['Outfit',sans-serif] text-slate-900 dark:text-white tracking-tight leading-tight">
             Discover Real-Time Community Insights
           </h1>
 
