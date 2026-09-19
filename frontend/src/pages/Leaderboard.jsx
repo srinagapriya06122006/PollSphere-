@@ -46,6 +46,13 @@ export const Leaderboard = () => {
 
   useEffect(() => {
     fetchLeaderboards()
+
+    const handleAuthChange = () => {
+      fetchLeaderboards()
+    }
+
+    window.addEventListener('auth-change', handleAuthChange)
+    return () => window.removeEventListener('auth-change', handleAuthChange)
   }, [])
 
   const topCreators = stats?.topCreators || []

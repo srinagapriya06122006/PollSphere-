@@ -291,9 +291,18 @@ export const Navbar = () => {
                     : 'border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/80 text-slate-700 dark:text-slate-300 hover:border-slate-300 dark:hover:border-slate-700'
                 }`}
               >
-                <div className="w-7 h-7 rounded-lg bg-gradient-to-tr from-indigo-600 via-indigo-500 to-purple-600 text-white font-black text-xs flex items-center justify-center shadow-sm tracking-wide">
-                  {userInitials}
-                </div>
+                {user.profile_image ? (
+                  <img
+                    src={user.profile_image}
+                    alt={user.name || 'User'}
+                    className="w-7 h-7 rounded-lg object-cover shadow-sm border border-slate-700/50"
+                    referrerPolicy="no-referrer"
+                  />
+                ) : (
+                  <div className="w-7 h-7 rounded-lg bg-gradient-to-tr from-indigo-600 via-indigo-500 to-purple-600 text-white font-black text-xs flex items-center justify-center shadow-sm tracking-wide">
+                    {userInitials}
+                  </div>
+                )}
                 <span className="text-xs font-semibold max-w-[100px] truncate text-slate-800 dark:text-slate-200">
                   {user.name || user.email}
                 </span>
@@ -304,9 +313,18 @@ export const Navbar = () => {
                 <div className="absolute right-0 mt-2 w-64 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl py-2 z-50 animate-fadeIn">
                   <div className="px-4 py-3 border-b border-slate-100 dark:border-slate-800">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-purple-600 text-white font-black text-sm flex items-center justify-center shadow-md">
-                        {userInitials}
-                      </div>
+                      {user.profile_image ? (
+                        <img
+                          src={user.profile_image}
+                          alt={user.name || 'User'}
+                          className="w-10 h-10 rounded-xl object-cover shadow-md border border-slate-700/50"
+                          referrerPolicy="no-referrer"
+                        />
+                      ) : (
+                        <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-purple-600 text-white font-black text-sm flex items-center justify-center shadow-md">
+                          {userInitials}
+                        </div>
+                      )}
                       <div className="min-w-0">
                         <p className="text-xs font-bold text-slate-900 dark:text-slate-100 truncate">{user.name || 'Account'}</p>
                         <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">{user.email}</p>
@@ -394,9 +412,18 @@ export const Navbar = () => {
             /* Mobile Logged-in Links */
             <div className="space-y-1.5 text-sm font-semibold">
               <div className="px-3 py-2 mb-2 rounded-xl bg-slate-50 dark:bg-slate-900 flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-indigo-600 text-white font-bold text-xs flex items-center justify-center">
-                  {userInitials}
-                </div>
+                {user?.profile_image ? (
+                  <img
+                    src={user.profile_image}
+                    alt={user.name || 'User'}
+                    className="w-8 h-8 rounded-lg object-cover border border-slate-700/50"
+                    referrerPolicy="no-referrer"
+                  />
+                ) : (
+                  <div className="w-8 h-8 rounded-lg bg-indigo-600 text-white font-bold text-xs flex items-center justify-center">
+                    {userInitials}
+                  </div>
+                )}
                 <div className="min-w-0">
                   <p className="text-xs font-bold text-slate-900 dark:text-slate-100 truncate">{user?.name || user?.email}</p>
                   <p className="text-[11px] text-slate-500 truncate">{user?.email}</p>

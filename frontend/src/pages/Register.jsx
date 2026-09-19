@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext'
 import Card from '../components/common/Card'
 import Input from '../components/common/Input'
 import Button from '../components/common/Button'
+import GoogleSignInButton from '../components/auth/GoogleSignInButton'
 import { validateEmail, GMAIL_REGEX } from '../utils/validators'
 
 export const Register = () => {
@@ -120,6 +121,21 @@ export const Register = () => {
             <span>{serverError}</span>
           </div>
         )}
+
+        <div className="mb-6">
+          <GoogleSignInButton buttonText="Sign up with Google" />
+          
+          <div className="relative my-6 text-center">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-slate-700/60" />
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-slate-900/95 px-3 text-slate-400 font-medium tracking-wider">
+                Or continue with Gmail
+              </span>
+            </div>
+          </div>
+        </div>
 
         <form onSubmit={handleSubmit} className="space-y-4" noValidate>
           <Input

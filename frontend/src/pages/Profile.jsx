@@ -89,7 +89,14 @@ export const Profile = () => {
 
   useEffect(() => {
     fetchProfileDetails()
-  }, [])
+
+    const handleAuthChange = () => {
+      fetchProfileDetails()
+    }
+
+    window.addEventListener('auth-change', handleAuthChange)
+    return () => window.removeEventListener('auth-change', handleAuthChange)
+  }, [user])
 
   const handleUpdateProfile = async (e) => {
     e.preventDefault()
@@ -148,16 +155,30 @@ export const Profile = () => {
       <Card className="p-8">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 pb-6 border-b border-slate-200 dark:border-slate-800">
           <div className="flex items-center gap-4">
-            {/* 2-Letter Uppercase Initials Badge */}
-            <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-indigo-600 via-indigo-500 to-purple-600 flex items-center justify-center text-white text-xl font-black shadow-lg shadow-indigo-950/20 ring-4 ring-indigo-500/20 tracking-wider">
-              {initials}
-            </div>
+            {/* Profile Avatar or 2-Letter Uppercase Initials Badge */}
+            {currentUser?.profile_image ? (
+              <img
+                src={currentUser.profile_image}
+                alt={currentUser.name || 'User'}
+                className="w-16 h-16 rounded-2xl object-cover shadow-lg ring-4 ring-indigo-500/20"
+                referrerPolicy="no-referrer"
+              />
+            ) : (
+              <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-indigo-600 via-indigo-500 to-purple-600 flex items-center justify-center text-white text-xl font-black shadow-lg shadow-indigo-950/20 ring-4 ring-indigo-500/20 tracking-wider">
+                {initials}
+              </div>
+            )}
             <div>
               <div className="flex items-center gap-2">
                 <h1 className="text-2xl font-black text-slate-900 dark:text-slate-100">{currentUser?.name || 'User Profile'}</h1>
                 <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20 uppercase tracking-wider">
                   {currentUser?.role || 'Member'}
                 </span>
+                {currentUser?.auth_provider === 'google' && (
+                  <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center gap-1">
+                    Google Account
+                  </span>
+                )}
               </div>
               <div className="flex flex-wrap items-center gap-3 text-xs font-semibold text-slate-600 dark:text-slate-400 mt-1">
                 <span className="flex items-center gap-1.5">

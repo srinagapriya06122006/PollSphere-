@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext'
 import Card from '../components/common/Card'
 import Input from '../components/common/Input'
 import Button from '../components/common/Button'
+import GoogleSignInButton from '../components/auth/GoogleSignInButton'
 import { validateEmail, GMAIL_REGEX } from '../utils/validators'
 
 export const Login = () => {
@@ -152,6 +153,21 @@ export const Login = () => {
             Sign In
           </Button>
         </form>
+
+        <div className="relative my-5 text-center">
+          <div className="absolute inset-0 flex items-center">
+            <div className="w-full border-t border-slate-700/60" />
+          </div>
+          <div className="relative flex justify-center text-xs uppercase">
+            <span className="bg-slate-900/95 px-3 text-slate-400 font-semibold tracking-wider">
+              Or continue with
+            </span>
+          </div>
+        </div>
+
+        <div className="mt-4">
+          <GoogleSignInButton />
+        </div>
 
         <p className="text-center text-xs text-slate-400 mt-6">
           Don't have an account?{' '}

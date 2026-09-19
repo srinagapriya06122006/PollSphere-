@@ -29,6 +29,7 @@ var (
 type AuthService interface {
 	Register(ctx context.Context, req *model.RegisterRequest, ip string) (*model.UserResponse, error)
 	Login(ctx context.Context, req *model.LoginRequest, ip string) (*model.AuthResponse, error)
+	GoogleLogin(ctx context.Context, idToken string, ip string) (*model.AuthResponse, error)
 	GetProfile(ctx context.Context, userID string) (*model.UserResponse, error)
 	GetProfileWithStats(ctx context.Context, userID string) (*model.UserProfileResponse, error)
 	UpdateProfile(ctx context.Context, userID string, req *model.UpdateProfileRequest) (*model.UserResponse, error)
@@ -38,11 +39,12 @@ type AuthService interface {
 }
 
 type authService struct {
-	userRepo     repository.UserRepository
-	pollRepo     repository.PollRepository
-	voteRepo     repository.VoteRepository
-	jwtService   JWTService
-	auditService AuditService
+	userRepo      repository.UserRepository
+	pollRepo      repository.PollRepository
+	voteRepo      repository.VoteRepository
+	jwtService    JWTService
+	auditService  AuditService
+	googleService GoogleAuthService
 }
 
 // NewAuthService returns an instance of AuthService with injected dependencies
@@ -52,13 +54,15 @@ func NewAuthService(
 	voteRepo repository.VoteRepository,
 	jwtService JWTService,
 	auditService AuditService,
+	googleService GoogleAuthService,
 ) AuthService {
 	return &authService{
-		userRepo:     userRepo,
-		pollRepo:     pollRepo,
-		voteRepo:     voteRepo,
-		jwtService:   jwtService,
-		auditService: auditService,
+		userRepo:      userRepo,
+		pollRepo:      pollRepo,
+		voteRepo:      voteRepo,
+		jwtService:    jwtService,
+		auditService:  auditService,
+		googleService: googleService,
 	}
 }
 
@@ -138,6 +142,109 @@ func (s *authService) Login(ctx context.Context, req *model.LoginRequest, ip str
 
 	if s.auditService != nil {
 		s.auditService.Log(ctx, &user.ID, user.Email, model.AuditActionUserLogin, "user", user.ID.Hex(), "User logged in successfully", ip)
+	}
+
+	return &model.AuthResponse{
+		Token: token,
+		User:  user.ToResponse(),
+	}, nil
+}
+
+// GoogleLogin verifies the Google ID token and logs in or creates the user
+func (s *authService) GoogleLogin(ctx context.Context, idToken string, ip string) (*model.AuthResponse, error) {
+	if s.googleService == nil {
+		return nil, errors.New("Google authentication service is not configured")
+	}
+
+	payload, err := s.googleService.VerifyIDToken(ctx, idToken)
+	if err != nil {
+		return nil, fmt.Errorf("Google token verification failed: %w", err)
+	}
+
+	normalizedEmail := strings.ToLower(strings.TrimSpace(payload.Email))
+	if normalizedEmail == "" || payload.Sub == "" {
+		return nil, errors.New("incomplete Google user profile")
+	}
+
+	// 1. Check if user already exists with this Google ID
+	user, err := s.userRepo.FindByGoogleID(ctx, payload.Sub)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query user by Google ID: %w", err)
+	}
+
+	if user != nil {
+		// Existing Google user: update profile picture or name if missing
+		updated := false
+		if user.ProfileImage == "" && payload.Picture != "" {
+			user.ProfileImage = payload.Picture
+			updated = true
+		}
+		if user.Name == "" && payload.Name != "" {
+			user.Name = payload.Name
+			updated = true
+		}
+		if updated {
+			_ = s.userRepo.Update(ctx, user)
+		}
+	} else {
+		// 2. Check if a user with this email exists (e.g. registered with password)
+		existingByEmail, err := s.userRepo.FindByEmail(ctx, normalizedEmail)
+		if err != nil {
+			return nil, fmt.Errorf("failed to check existing email: %w", err)
+		}
+
+		if existingByEmail != nil {
+			// Link existing account to Google
+			user = existingByEmail
+			user.GoogleID = payload.Sub
+			if user.AuthProvider == "" || user.AuthProvider == "local" {
+				user.AuthProvider = "google"
+			}
+			if user.ProfileImage == "" && payload.Picture != "" {
+				user.ProfileImage = payload.Picture
+			}
+			if user.Name == "" && payload.Name != "" {
+				user.Name = payload.Name
+			}
+			if err := s.userRepo.Update(ctx, user); err != nil {
+				return nil, fmt.Errorf("failed to link Google account: %w", err)
+			}
+		} else {
+			// 3. Create a brand new Google user
+			name := strings.TrimSpace(payload.Name)
+			if name == "" {
+				parts := strings.Split(normalizedEmail, "@")
+				name = parts[0]
+			}
+
+			newUser := &model.User{
+				Name:         name,
+				Email:        normalizedEmail,
+				Role:         model.RoleUser,
+				AuthProvider: "google",
+				GoogleID:     payload.Sub,
+				ProfileImage: payload.Picture,
+			}
+
+			if err := s.userRepo.Create(ctx, newUser); err != nil {
+				return nil, fmt.Errorf("failed to create user with Google: %w", err)
+			}
+			user = newUser
+
+			if s.auditService != nil {
+				s.auditService.Log(ctx, &user.ID, user.Email, model.AuditActionUserRegister, "user", user.ID.Hex(), "New account registered via Google OAuth", ip)
+			}
+		}
+	}
+
+	// 4. Issue PollSphere standard JWT
+	token, err := s.jwtService.GenerateToken(user)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate authentication token: %w", err)
+	}
+
+	if s.auditService != nil {
+		s.auditService.Log(ctx, &user.ID, user.Email, model.AuditActionUserLogin, "user", user.ID.Hex(), "User logged in via Google OAuth", ip)
 	}
 
 	return &model.AuthResponse{

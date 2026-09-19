@@ -22,6 +22,8 @@ type Config struct {
 	RedisPassword  string
 	RedisDB        int
 	RedisEnabled   bool
+	GoogleClientID string
+	GoogleClientSecret string
 }
 
 // LoadConfig initializes application configuration from .env or system environment
@@ -58,6 +60,8 @@ func LoadConfig() *Config {
 		RedisPassword:  getEnv("REDIS_PASSWORD", ""),
 		RedisDB:        redisDB,
 		RedisEnabled:   redisEnabled,
+		GoogleClientID:     getEnv("GOOGLE_CLIENT_ID", ""),
+		GoogleClientSecret: getEnv("GOOGLE_CLIENT_SECRET", ""),
 	}
 
 	return cfg

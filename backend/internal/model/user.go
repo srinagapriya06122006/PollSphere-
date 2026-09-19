@@ -16,13 +16,16 @@ const (
 
 // User represents the user domain model stored in MongoDB
 type User struct {
-	ID        bson.ObjectID `bson:"_id,omitempty" json:"id"`
-	Name      string        `bson:"name" json:"name"`
-	Email     string        `bson:"email" json:"email"`
-	Password  string        `bson:"password" json:"-"` // Never exposed in JSON serialization
-	Role      UserRole      `bson:"role" json:"role"`
-	CreatedAt time.Time     `bson:"created_at" json:"created_at"`
-	UpdatedAt time.Time     `bson:"updated_at" json:"updated_at"`
+	ID           bson.ObjectID `bson:"_id,omitempty" json:"id"`
+	Name         string        `bson:"name" json:"name"`
+	Email        string        `bson:"email" json:"email"`
+	Password     string        `bson:"password,omitempty" json:"-"` // Never exposed in JSON serialization, optional for OAuth users
+	Role         UserRole      `bson:"role" json:"role"`
+	AuthProvider string        `bson:"auth_provider,omitempty" json:"auth_provider,omitempty"` // "local", "google"
+	GoogleID     string        `bson:"google_id,omitempty" json:"google_id,omitempty"`
+	ProfileImage string        `bson:"profile_image,omitempty" json:"profile_image,omitempty"`
+	CreatedAt    time.Time     `bson:"created_at" json:"created_at"`
+	UpdatedAt    time.Time     `bson:"updated_at" json:"updated_at"`
 }
 
 // RegisterRequest represents the incoming registration payload
@@ -39,6 +42,11 @@ type LoginRequest struct {
 	Password string `json:"password" binding:"required"`
 }
 
+// GoogleAuthRequest represents the Google Sign-In verification payload
+type GoogleAuthRequest struct {
+	IDToken string `json:"idToken" binding:"required"`
+}
+
 // UpdateProfileRequest represents profile and password changes
 type UpdateProfileRequest struct {
 	Name            *string `json:"name,omitempty" binding:"omitempty,min=2,max=50"`
@@ -48,11 +56,13 @@ type UpdateProfileRequest struct {
 
 // UserResponse represents the safe public user representation
 type UserResponse struct {
-	ID        string    `json:"id"`
-	Name      string    `json:"name"`
-	Email     string    `json:"email"`
-	Role      UserRole  `json:"role"`
-	CreatedAt time.Time `json:"created_at"`
+	ID           string    `json:"id"`
+	Name         string    `json:"name"`
+	Email        string    `json:"email"`
+	Role         UserRole  `json:"role"`
+	AuthProvider string    `json:"auth_provider,omitempty"`
+	ProfileImage string    `json:"profile_image,omitempty"`
+	CreatedAt    time.Time `json:"created_at"`
 }
 
 // UserProfileStats contains aggregated activity metrics for the user profile
@@ -91,10 +101,12 @@ func (u *User) ToResponse() *UserResponse {
 		role = RoleUser
 	}
 	return &UserResponse{
-		ID:        u.ID.Hex(),
-		Name:      u.Name,
-		Email:     u.Email,
-		Role:      role,
-		CreatedAt: u.CreatedAt,
+		ID:           u.ID.Hex(),
+		Name:         u.Name,
+		Email:        u.Email,
+		Role:         role,
+		AuthProvider: u.AuthProvider,
+		ProfileImage: u.ProfileImage,
+		CreatedAt:    u.CreatedAt,
 	}
 }

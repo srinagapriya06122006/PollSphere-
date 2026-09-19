@@ -102,6 +102,48 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	})
 }
 
+// GoogleLogin handles Google Sign-In verification and returns a JWT
+func (h *AuthHandler) GoogleLogin(c *gin.Context) {
+	var req model.GoogleAuthRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error":   "Invalid request payload: idToken is required",
+			"details": err.Error(),
+		})
+		return
+	}
+
+	clientIP := c.ClientIP()
+	authResponse, err := h.authService.GoogleLogin(c.Request.Context(), req.IDToken, clientIP)
+	if err != nil {
+		switch {
+		case errors.Is(err, service.ErrGoogleAudienceMismatch),
+			errors.Is(err, service.ErrInvalidGoogleToken):
+			c.JSON(http.StatusUnauthorized, gin.H{
+				"error":   "Google authentication failed: invalid token",
+				"details": err.Error(),
+			})
+			return
+		case errors.Is(err, service.ErrGoogleEmailNotVerified):
+			c.JSON(http.StatusForbidden, gin.H{
+				"error": "Google email address is not verified",
+			})
+			return
+		default:
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error":   "Google login failed",
+				"details": err.Error(),
+			})
+			return
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Google authentication successful",
+		"data":    authResponse,
+	})
+}
+
 // Me returns the currently authenticated user's profile
 func (h *AuthHandler) Me(c *gin.Context) {
 	userIDVal, exists := c.Get("userId")

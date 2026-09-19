@@ -20,6 +20,10 @@ func NewAnalyticsHandler(analyticsService service.AnalyticsService) *AnalyticsHa
 
 // GetOverview returns aggregated system statistics for dashboard visualization
 func (h *AnalyticsHandler) GetOverview(c *gin.Context) {
+	if c.Query("refresh") == "true" || c.Query("t") != "" {
+		h.analyticsService.InvalidateCache(c.Request.Context())
+	}
+
 	overview, err := h.analyticsService.GetOverview(c.Request.Context())
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{

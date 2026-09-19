@@ -19,6 +19,7 @@ type UserRepository interface {
 	EnsureIndexes(ctx context.Context) error
 	Create(ctx context.Context, user *model.User) error
 	FindByEmail(ctx context.Context, email string) (*model.User, error)
+	FindByGoogleID(ctx context.Context, googleID string) (*model.User, error)
 	FindByID(ctx context.Context, id bson.ObjectID) (*model.User, error)
 	Update(ctx context.Context, user *model.User) error
 	FindAll(ctx context.Context, page, limit int) ([]*model.User, int64, error)
@@ -47,6 +48,12 @@ func (r *mongoUserRepository) EnsureIndexes(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("failed to create unique index on users.email: %w", err)
 	}
+
+	googleIndexModel := mongo.IndexModel{
+		Keys:    bson.D{{Key: "google_id", Value: 1}},
+		Options: options.Index().SetUnique(true).SetSparse(true).SetName("sparse_unique_user_google_id"),
+	}
+	_, _ = r.collection.Indexes().CreateOne(ctx, googleIndexModel)
 
 	slog.Info("MongoDB index verified", "collection", "users", "index", "unique_user_email")
 	return nil
@@ -89,6 +96,22 @@ func (r *mongoUserRepository) FindByEmail(ctx context.Context, email string) (*m
 	return &user, nil
 }
 
+// FindByGoogleID searches for a single user by their Google ID
+func (r *mongoUserRepository) FindByGoogleID(ctx context.Context, googleID string) (*model.User, error) {
+	var user model.User
+	filter := bson.M{"google_id": googleID}
+
+	err := r.collection.FindOne(ctx, filter).Decode(&user)
+	if err != nil {
+		if errors.Is(err, mongo.ErrNoDocuments) {
+			return nil, nil // User not found
+		}
+		return nil, err
+	}
+
+	return &user, nil
+}
+
 // FindByID searches for a single user by their ObjectID
 func (r *mongoUserRepository) FindByID(ctx context.Context, id bson.ObjectID) (*model.User, error) {
 	var user model.User
@@ -110,10 +133,13 @@ func (r *mongoUserRepository) Update(ctx context.Context, user *model.User) erro
 	user.UpdatedAt = time.Now().UTC()
 	filter := bson.M{"_id": user.ID}
 	update := bson.M{"$set": bson.M{
-		"name":       user.Name,
-		"password":   user.Password,
-		"role":       user.Role,
-		"updated_at": user.UpdatedAt,
+		"name":          user.Name,
+		"password":      user.Password,
+		"role":          user.Role,
+		"auth_provider": user.AuthProvider,
+		"google_id":     user.GoogleID,
+		"profile_image": user.ProfileImage,
+		"updated_at":    user.UpdatedAt,
 	}}
 
 	_, err := r.collection.UpdateOne(ctx, filter, update)

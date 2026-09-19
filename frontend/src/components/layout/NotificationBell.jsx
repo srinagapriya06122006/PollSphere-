@@ -31,7 +31,16 @@ export const NotificationBell = () => {
   useEffect(() => {
     fetchNotifications()
     const interval = setInterval(fetchNotifications, 20000) // 20s polling for background events
-    return () => clearInterval(interval)
+
+    const handleAuthChange = () => {
+      fetchNotifications()
+    }
+    window.addEventListener('auth-change', handleAuthChange)
+
+    return () => {
+      clearInterval(interval)
+      window.removeEventListener('auth-change', handleAuthChange)
+    }
   }, [user])
 
   // Close dropdown when clicking outside

@@ -59,11 +59,12 @@ export const AnalyticsDashboard = () => {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
-  const fetchData = async () => {
+  const fetchData = async (fresh = false) => {
     try {
       setLoading(true)
+      const query = fresh ? `?refresh=true&t=${Date.now()}` : ''
       const [analyticsRes, healthRes] = await Promise.all([
-        apiClient.get('/analytics/overview'),
+        apiClient.get(`/analytics/overview${query}`),
         apiClient.get('/health').catch(() => ({ data: { database: 'connected', redis: 'connected' } })),
       ])
       setData(analyticsRes.data)
@@ -76,7 +77,14 @@ export const AnalyticsDashboard = () => {
   }
 
   useEffect(() => {
-    fetchData()
+    fetchData(true)
+
+    const handleAuthChange = () => {
+      fetchData(true)
+    }
+
+    window.addEventListener('auth-change', handleAuthChange)
+    return () => window.removeEventListener('auth-change', handleAuthChange)
   }, [])
 
   if (loading) {

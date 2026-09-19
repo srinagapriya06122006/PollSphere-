@@ -63,6 +63,7 @@ func SetupRouter(
 		{
 			auth.POST("/register", authHandler.Register)
 			auth.POST("/login", authHandler.Login)
+			auth.POST("/google", authHandler.GoogleLogin)
 
 			protectedAuth := auth.Group("")
 			protectedAuth.Use(middleware.AuthMiddleware(jwtService))

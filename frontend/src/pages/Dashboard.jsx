@@ -38,7 +38,14 @@ export const Dashboard = () => {
       }
     }
     fetchRecent()
-  }, [])
+
+    const handleAuthChange = () => {
+      fetchRecent()
+    }
+
+    window.addEventListener('auth-change', handleAuthChange)
+    return () => window.removeEventListener('auth-change', handleAuthChange)
+  }, [user])
 
   return (
     <div className="space-y-8 animate-fadeIn">

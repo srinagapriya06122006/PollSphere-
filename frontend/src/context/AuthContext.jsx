@@ -32,7 +32,13 @@ export const AuthProvider = ({ children }) => {
 
     initAuth()
 
-    const handleAuthChange = () => {
+    const handleAuthChange = (e) => {
+      // If event provides user/token directly, avoid redundant parsing
+      if (e?.detail?.user !== undefined) {
+        setUser(e.detail.user)
+        setToken(e.detail.token || null)
+        return
+      }
       const storedUser = localStorage.getItem('user')
       const storedTok = localStorage.getItem('token')
       setUser(storedUser ? JSON.parse(storedUser) : null)
@@ -52,7 +58,7 @@ export const AuthProvider = ({ children }) => {
       localStorage.setItem('user', JSON.stringify(userData))
       setToken(jwtToken)
       setUser(userData)
-      window.dispatchEvent(new Event('auth-change'))
+      window.dispatchEvent(new CustomEvent('auth-change', { detail: { user: userData, token: jwtToken } }))
     }
 
     return userData
@@ -61,6 +67,39 @@ export const AuthProvider = ({ children }) => {
   const register = async (name, email, password) => {
     const response = await apiClient.post('/auth/register', { name, email, password })
     return response.data?.data
+  }
+
+  const loginWithGoogle = async (idToken) => {
+    const response = await apiClient.post('/auth/google', { idToken })
+    const { token: jwtToken, user: userData } = response.data?.data || {}
+
+    if (jwtToken && userData) {
+      localStorage.setItem('token', jwtToken)
+      localStorage.setItem('user', JSON.stringify(userData))
+      setToken(jwtToken)
+      setUser(userData)
+      window.dispatchEvent(new CustomEvent('auth-change', { detail: { user: userData, token: jwtToken } }))
+    }
+
+    return userData
+  }
+
+  const refreshUser = async () => {
+    const storedToken = localStorage.getItem('token')
+    if (!storedToken) return null
+    try {
+      const response = await apiClient.get('/auth/me')
+      const freshUser = response.data?.data
+      if (freshUser) {
+        localStorage.setItem('user', JSON.stringify(freshUser))
+        setUser(freshUser)
+        window.dispatchEvent(new CustomEvent('auth-change', { detail: { user: freshUser, token: storedToken } }))
+        return freshUser
+      }
+    } catch (err) {
+      console.warn('Failed to refresh user profile:', err)
+    }
+    return null
   }
 
   const logout = () => {
@@ -78,6 +117,8 @@ export const AuthProvider = ({ children }) => {
     isAuthenticated: !!token && !!user,
     login,
     register,
+    loginWithGoogle,
+    refreshUser,
     logout,
   }
 

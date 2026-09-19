@@ -55,6 +55,15 @@ export const MyPolls = () => {
     if (user) {
       fetchMyPolls()
     }
+
+    const handleAuthChange = () => {
+      if (localStorage.getItem('user')) {
+        fetchMyPolls()
+      }
+    }
+
+    window.addEventListener('auth-change', handleAuthChange)
+    return () => window.removeEventListener('auth-change', handleAuthChange)
   }, [user])
 
   const handleDelete = async (e, pollId) => {
