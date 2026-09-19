@@ -1,6 +1,3 @@
-Absolutely. Use this as your **final `README.md`**. It is professional, recruiter-friendly, and uses your correct GitHub and live links.
-
-````markdown
 # 🌐 PollSphere — Real-Time Polling & Analytics Platform
 
 > Create polls, share them with your audience, collect votes, and watch results update in real time — without refreshing the page.
