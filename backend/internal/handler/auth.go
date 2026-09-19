@@ -37,6 +37,10 @@ func (h *AuthHandler) Register(c *gin.Context) {
 	userResponse, err := h.authService.Register(c.Request.Context(), &req, clientIP)
 	if err != nil {
 		switch {
+		case errors.Is(err, service.ErrInvalidGmailAddress):
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error": err.Error(),
+			})
 		case errors.Is(err, service.ErrEmailAlreadyExists):
 			c.JSON(http.StatusConflict, gin.H{
 				"error": err.Error(),
@@ -73,17 +77,23 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	clientIP := c.ClientIP()
 	authResponse, err := h.authService.Login(c.Request.Context(), &req, clientIP)
 	if err != nil {
-		if errors.Is(err, service.ErrInvalidCredentials) {
+		switch {
+		case errors.Is(err, service.ErrInvalidGmailAddress):
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error": err.Error(),
+			})
+			return
+		case errors.Is(err, service.ErrInvalidCredentials):
 			c.JSON(http.StatusUnauthorized, gin.H{
 				"error": err.Error(),
 			})
 			return
+		default:
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error": "Authentication failed",
+			})
+			return
 		}
-
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "Authentication failed",
-		})
-		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{

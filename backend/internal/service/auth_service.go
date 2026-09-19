@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"regexp"
 	"sort"
 	"strings"
 
@@ -15,11 +16,13 @@ import (
 )
 
 var (
-	ErrEmailAlreadyExists = errors.New("a user with this email already exists")
-	ErrInvalidCredentials = errors.New("invalid email or password")
-	ErrPasswordTooShort   = errors.New("password must be at least 6 characters")
-	ErrUserNotFound       = errors.New("user not found")
-	ErrWrongPassword      = errors.New("current password is incorrect")
+	gmailRegex             = regexp.MustCompile(`^[a-zA-Z0-9._]+@gmail\.com$`)
+	ErrInvalidGmailAddress = errors.New("please enter a valid Gmail address (example: username@gmail.com)")
+	ErrEmailAlreadyExists  = errors.New("a user with this email already exists")
+	ErrInvalidCredentials  = errors.New("invalid email or password")
+	ErrPasswordTooShort    = errors.New("password must be at least 6 characters")
+	ErrUserNotFound        = errors.New("user not found")
+	ErrWrongPassword       = errors.New("current password is incorrect")
 )
 
 // AuthService defines the business logic contract for authentication and user management
@@ -64,6 +67,10 @@ func (s *authService) Register(ctx context.Context, req *model.RegisterRequest, 
 	normalizedEmail := strings.ToLower(strings.TrimSpace(req.Email))
 	trimmedName := strings.TrimSpace(req.Name)
 
+	if !gmailRegex.MatchString(normalizedEmail) {
+		return nil, ErrInvalidGmailAddress
+	}
+
 	if len(req.Password) < 6 {
 		return nil, ErrPasswordTooShort
 	}
@@ -107,6 +114,10 @@ func (s *authService) Register(ctx context.Context, req *model.RegisterRequest, 
 // Login validates user credentials and returns a signed JWT token with user details
 func (s *authService) Login(ctx context.Context, req *model.LoginRequest, ip string) (*model.AuthResponse, error) {
 	normalizedEmail := strings.ToLower(strings.TrimSpace(req.Email))
+
+	if !gmailRegex.MatchString(normalizedEmail) {
+		return nil, ErrInvalidGmailAddress
+	}
 
 	user, err := s.userRepo.FindByEmail(ctx, normalizedEmail)
 	if err != nil {

@@ -5,7 +5,7 @@ import { useAuth } from '../context/AuthContext'
 import Card from '../components/common/Card'
 import Input from '../components/common/Input'
 import Button from '../components/common/Button'
-import { validateEmail } from '../utils/validators'
+import { validateEmail, GMAIL_REGEX } from '../utils/validators'
 
 export const Login = () => {
   const navigate = useNavigate()
@@ -28,7 +28,7 @@ export const Login = () => {
     const value = e.target.value
     setFormData((prev) => ({ ...prev, email: value }))
 
-    if (emailTouched || emailError) {
+    if (emailTouched || value.length > 0) {
       const { isValid, error } = validateEmail(value)
       setEmailError(isValid ? '' : error)
     }
@@ -40,11 +40,14 @@ export const Login = () => {
     setEmailError(isValid ? '' : error)
   }
 
+  const isEmailValid = GMAIL_REGEX.test(formData.email.trim())
+  const isFormValid = isEmailValid && formData.password.length > 0
+
   const handleSubmit = async (e) => {
     e.preventDefault()
     setServerError(null)
 
-    // Validate email
+    // Validate Gmail address
     setEmailTouched(true)
     const emailValidation = validateEmail(formData.email)
     if (!emailValidation.isValid) {
@@ -71,7 +74,12 @@ export const Login = () => {
       if (err.customMessage === 'Network Error' || err.message === 'Network Error') {
         setServerError('Unable to connect to backend server (http://localhost:8080). Please check your connection or backend status.')
       } else {
-        setServerError(err.customMessage || err.response?.data?.message || 'Invalid email or password. If you do not have an account yet, please sign up.')
+        setServerError(
+          err.customMessage ||
+            err.response?.data?.error ||
+            err.response?.data?.message ||
+            'Invalid Gmail or password. If you do not have an account yet, please sign up.'
+        )
       }
     } finally {
       setLoading(false)
@@ -79,7 +87,6 @@ export const Login = () => {
   }
 
   const isRedirected = Boolean(redirectQuery || location.state?.from)
-  const isEmailValid = emailTouched && !emailError && formData.email.trim().length > 0
 
   return (
     <div className="max-w-md mx-auto py-12">
@@ -89,7 +96,7 @@ export const Login = () => {
             <LogIn className="w-6 h-6" />
           </div>
           <h1 className="text-2xl font-bold text-slate-100">Welcome Back</h1>
-          <p className="text-xs text-slate-400">Sign in to your account to create and manage live polls</p>
+          <p className="text-xs text-slate-400">Sign in to your account with your Gmail address</p>
         </div>
 
         {isRedirected && (
@@ -107,17 +114,17 @@ export const Login = () => {
 
         <form onSubmit={handleSubmit} className="space-y-4" noValidate>
           <Input
-            label="Email Address"
+            label="Gmail Address"
             type="email"
             id="email"
             required
-            placeholder="you@example.com"
+            placeholder="username@gmail.com"
             value={formData.email}
             error={emailError}
             isValid={isEmailValid}
             onChange={handleEmailChange}
             onBlur={handleEmailBlur}
-            helperText={!emailError && isEmailValid ? 'Valid email format' : undefined}
+            helperText={isEmailValid ? 'Valid Gmail address' : undefined}
           />
 
           <Input
@@ -134,7 +141,14 @@ export const Login = () => {
             }}
           />
 
-          <Button type="submit" variant="primary" size="md" className="w-full mt-2 font-bold" isLoading={loading}>
+          <Button
+            type="submit"
+            variant="primary"
+            size="md"
+            className="w-full mt-2 font-bold"
+            disabled={!isFormValid || loading}
+            isLoading={loading}
+          >
             Sign In
           </Button>
         </form>

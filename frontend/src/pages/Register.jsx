@@ -5,7 +5,7 @@ import { useAuth } from '../context/AuthContext'
 import Card from '../components/common/Card'
 import Input from '../components/common/Input'
 import Button from '../components/common/Button'
-import { validateEmail } from '../utils/validators'
+import { validateEmail, GMAIL_REGEX } from '../utils/validators'
 
 export const Register = () => {
   const navigate = useNavigate()
@@ -25,12 +25,12 @@ export const Register = () => {
   const redirectQuery = searchParams.get('redirect')
   const fromPath = redirectQuery || location.state?.from?.pathname || '/'
 
-  // Handle email changes and live validation if touched
+  // Handle email changes with real-time validation
   const handleEmailChange = (e) => {
     const value = e.target.value
     setFormData((prev) => ({ ...prev, email: value }))
 
-    if (emailTouched || emailError) {
+    if (emailTouched || value.length > 0) {
       const { isValid, error } = validateEmail(value)
       setEmailError(isValid ? '' : error)
     }
@@ -52,18 +52,21 @@ export const Register = () => {
     }
   }
 
+  const isEmailValid = GMAIL_REGEX.test(formData.email.trim())
+  const isFormValid = isEmailValid && formData.name.trim().length >= 2 && formData.password.length >= 6
+
   const handleSubmit = async (e) => {
     e.preventDefault()
     setServerError(null)
 
     // Validate Full Name
-    if (!formData.name.trim()) {
-      setNameError('Full name is required')
+    if (!formData.name.trim() || formData.name.trim().length < 2) {
+      setNameError('Full name must be at least 2 characters')
       return
     }
     setNameError('')
 
-    // Validate Email
+    // Validate Gmail Address
     setEmailTouched(true)
     const emailValidation = validateEmail(formData.email)
     if (!emailValidation.isValid) {
@@ -90,13 +93,15 @@ export const Register = () => {
       await login(normalizedEmail, formData.password)
       navigate(fromPath, { replace: true })
     } catch (err) {
-      setServerError(err.customMessage || err.response?.data?.message || 'Failed to register account')
+      if (err.customMessage === 'Network Error' || err.message === 'Network Error') {
+        setServerError('Unable to connect to backend server (http://localhost:8080). Please ensure backend is running.')
+      } else {
+        setServerError(err.customMessage || err.response?.data?.error || err.response?.data?.message || 'Failed to register account')
+      }
     } finally {
       setLoading(false)
     }
   }
-
-  const isEmailValid = emailTouched && !emailError && formData.email.trim().length > 0
 
   return (
     <div className="max-w-md mx-auto py-12">
@@ -106,7 +111,7 @@ export const Register = () => {
             <UserPlus className="w-6 h-6" />
           </div>
           <h1 className="text-2xl font-bold text-slate-100">Create an Account</h1>
-          <p className="text-xs text-slate-400">Join the live polling community in seconds</p>
+          <p className="text-xs text-slate-400">Join the live polling community with your Gmail address</p>
         </div>
 
         {serverError && (
@@ -122,7 +127,7 @@ export const Register = () => {
             type="text"
             id="name"
             required
-            placeholder="Sri"
+            placeholder="Sri Nagapriya"
             value={formData.name}
             error={nameError}
             onChange={(e) => {
@@ -132,17 +137,23 @@ export const Register = () => {
           />
 
           <Input
-            label="Email Address"
+            label="Gmail Address"
             type="email"
             id="email"
             required
-            placeholder="sri@example.com"
+            placeholder="username@gmail.com"
             value={formData.email}
             error={emailError}
             isValid={isEmailValid}
             onChange={handleEmailChange}
             onBlur={handleEmailBlur}
-            helperText={!emailError && isEmailValid ? 'Valid email format' : undefined}
+            helperText={
+              isEmailValid
+                ? 'Valid Gmail address'
+                : emailTouched && !emailError
+                ? undefined
+                : 'Accepts username@gmail.com'
+            }
           />
 
           <Input
@@ -157,7 +168,14 @@ export const Register = () => {
             onChange={handlePasswordChange}
           />
 
-          <Button type="submit" variant="primary" size="md" className="w-full mt-2 font-bold" isLoading={loading}>
+          <Button
+            type="submit"
+            variant="primary"
+            size="md"
+            className="w-full mt-2 font-bold"
+            disabled={!isFormValid || loading}
+            isLoading={loading}
+          >
             Sign Up & Get Started
           </Button>
         </form>
