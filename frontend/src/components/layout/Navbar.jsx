@@ -128,7 +128,13 @@ export const Navbar = () => {
         </Link>
 
         {/* Desktop Navigation Links */}
-        <nav className="hidden md:flex items-center gap-1 sm:gap-1.5">
+        <nav
+          className={`hidden md:flex items-center ${
+            isAuthenticated
+              ? 'gap-1.5 lg:gap-2.5 xl:gap-3'
+              : 'md:gap-6 lg:gap-8 xl:gap-[36px]'
+          }`}
+        >
           {isAuthenticated ? (
             /* Logged-In Navigation */
             <>
