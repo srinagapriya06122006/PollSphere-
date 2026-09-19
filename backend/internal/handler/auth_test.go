@@ -20,6 +20,7 @@ import (
 type MockAuthService struct {
 	RegisterFunc            func(ctx context.Context, req *model.RegisterRequest, ip string) (*model.UserResponse, error)
 	LoginFunc               func(ctx context.Context, req *model.LoginRequest, ip string) (*model.AuthResponse, error)
+	GoogleLoginFunc         func(ctx context.Context, idToken string, ip string) (*model.AuthResponse, error)
 	GetProfileFunc          func(ctx context.Context, userID string) (*model.UserResponse, error)
 	GetProfileWithStatsFunc func(ctx context.Context, userID string) (*model.UserProfileResponse, error)
 	UpdateProfileFunc       func(ctx context.Context, userID string, req *model.UpdateProfileRequest) (*model.UserResponse, error)
@@ -38,6 +39,13 @@ func (m *MockAuthService) Register(ctx context.Context, req *model.RegisterReque
 func (m *MockAuthService) Login(ctx context.Context, req *model.LoginRequest, ip string) (*model.AuthResponse, error) {
 	if m.LoginFunc != nil {
 		return m.LoginFunc(ctx, req, ip)
+	}
+	return nil, nil
+}
+
+func (m *MockAuthService) GoogleLogin(ctx context.Context, idToken string, ip string) (*model.AuthResponse, error) {
+	if m.GoogleLoginFunc != nil {
+		return m.GoogleLoginFunc(ctx, idToken, ip)
 	}
 	return nil, nil
 }
@@ -224,5 +232,55 @@ func TestAuthHandler_Me_Unauthenticated(t *testing.T) {
 
 	if w.Code != http.StatusUnauthorized {
 		t.Fatalf("expected status 401 Unauthorized, got: %d", w.Code)
+	}
+}
+
+func TestAuthHandler_GoogleLogin_Success(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	mockSvc := &MockAuthService{
+		GoogleLoginFunc: func(ctx context.Context, idToken string, ip string) (*model.AuthResponse, error) {
+			return &model.AuthResponse{
+				Token: "google-jwt-token-xyz",
+				User: &model.UserResponse{
+					ID:           "66e85293f0b001a1a1a1a1a1",
+					Name:         "Google User",
+					Email:        "googleuser@gmail.com",
+					AuthProvider: "google",
+				},
+			}, nil
+		},
+	}
+
+	h := handler.NewAuthHandler(mockSvc)
+	r := gin.New()
+	r.POST("/api/auth/google", h.GoogleLogin)
+
+	payload := model.GoogleAuthRequest{
+		IDToken: "valid-google-id-token-abc",
+	}
+	body, _ := json.Marshal(payload)
+
+	req, _ := http.NewRequest(http.MethodPost, "/api/auth/google", bytes.NewBuffer(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected status 200 OK, got: %d", w.Code)
+	}
+
+	var resp struct {
+		Message string              `json:"message"`
+		Data    *model.AuthResponse `json:"data"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	if resp.Data == nil || resp.Data.Token != "google-jwt-token-xyz" {
+		t.Fatalf("expected token google-jwt-token-xyz, got %+v", resp.Data)
+	}
+	if resp.Data.User.AuthProvider != "google" {
+		t.Errorf("expected auth provider google, got %s", resp.Data.User.AuthProvider)
 	}
 }
