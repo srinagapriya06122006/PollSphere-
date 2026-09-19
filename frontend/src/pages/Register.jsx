@@ -5,36 +5,98 @@ import { useAuth } from '../context/AuthContext'
 import Card from '../components/common/Card'
 import Input from '../components/common/Input'
 import Button from '../components/common/Button'
+import { validateEmail } from '../utils/validators'
 
 export const Register = () => {
   const navigate = useNavigate()
   const location = useLocation()
   const { register, login } = useAuth()
+
   const [formData, setFormData] = useState({ name: '', email: '', password: '' })
+  const [emailTouched, setEmailTouched] = useState(false)
+  const [emailError, setEmailError] = useState('')
+  const [passwordError, setPasswordError] = useState('')
+  const [nameError, setNameError] = useState('')
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState(null)
+  const [serverError, setServerError] = useState(null)
 
   // Retrieve destination path if user was redirected here
   const searchParams = new URLSearchParams(location.search)
   const redirectQuery = searchParams.get('redirect')
   const fromPath = redirectQuery || location.state?.from?.pathname || '/'
 
+  // Handle email changes and live validation if touched
+  const handleEmailChange = (e) => {
+    const value = e.target.value
+    setFormData((prev) => ({ ...prev, email: value }))
+
+    if (emailTouched || emailError) {
+      const { isValid, error } = validateEmail(value)
+      setEmailError(isValid ? '' : error)
+    }
+  }
+
+  const handleEmailBlur = () => {
+    setEmailTouched(true)
+    const { isValid, error } = validateEmail(formData.email)
+    setEmailError(isValid ? '' : error)
+  }
+
+  const handlePasswordChange = (e) => {
+    const value = e.target.value
+    setFormData((prev) => ({ ...prev, password: value }))
+    if (value && value.length < 6) {
+      setPasswordError('Password must be at least 6 characters')
+    } else {
+      setPasswordError('')
+    }
+  }
+
   const handleSubmit = async (e) => {
     e.preventDefault()
+    setServerError(null)
+
+    // Validate Full Name
+    if (!formData.name.trim()) {
+      setNameError('Full name is required')
+      return
+    }
+    setNameError('')
+
+    // Validate Email
+    setEmailTouched(true)
+    const emailValidation = validateEmail(formData.email)
+    if (!emailValidation.isValid) {
+      setEmailError(emailValidation.error)
+      return
+    }
+    setEmailError('')
+
+    // Validate Password
+    if (!formData.password || formData.password.length < 6) {
+      setPasswordError('Password must be at least 6 characters')
+      return
+    }
+    setPasswordError('')
+
     setLoading(true)
-    setError(null)
+
+    const normalizedEmail = formData.email.trim().toLowerCase()
+    const trimmedName = formData.name.trim()
 
     try {
-      await register(formData.name, formData.email, formData.password)
+      await register(trimmedName, normalizedEmail, formData.password)
       // Auto login upon successful registration
-      await login(formData.email, formData.password)
+      await login(normalizedEmail, formData.password)
       navigate(fromPath, { replace: true })
     } catch (err) {
-      setError(err.customMessage || 'Failed to register account')
+      setServerError(err.customMessage || err.response?.data?.message || 'Failed to register account')
     } finally {
       setLoading(false)
     }
   }
+
+  const isEmailValid = emailTouched && !emailError && formData.email.trim().length > 0
 
   return (
     <div className="max-w-md mx-auto py-12">
@@ -47,14 +109,14 @@ export const Register = () => {
           <p className="text-xs text-slate-400">Join the live polling community in seconds</p>
         </div>
 
-        {error && (
+        {serverError && (
           <div className="mb-6 p-4 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-300 text-xs flex items-center gap-2.5">
             <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
-            <span>{error}</span>
+            <span>{serverError}</span>
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4" noValidate>
           <Input
             label="Full Name"
             type="text"
@@ -62,7 +124,11 @@ export const Register = () => {
             required
             placeholder="Sri"
             value={formData.name}
-            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+            error={nameError}
+            onChange={(e) => {
+              setFormData({ ...formData, name: e.target.value })
+              if (nameError) setNameError('')
+            }}
           />
 
           <Input
@@ -72,7 +138,11 @@ export const Register = () => {
             required
             placeholder="sri@example.com"
             value={formData.email}
-            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+            error={emailError}
+            isValid={isEmailValid}
+            onChange={handleEmailChange}
+            onBlur={handleEmailBlur}
+            helperText={!emailError && isEmailValid ? 'Valid email format' : undefined}
           />
 
           <Input
@@ -80,13 +150,14 @@ export const Register = () => {
             type="password"
             id="password"
             required
-            helperText="Minimum 6 characters"
+            error={passwordError}
+            helperText={!passwordError ? 'Minimum 6 characters' : undefined}
             placeholder="••••••••"
             value={formData.password}
-            onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+            onChange={handlePasswordChange}
           />
 
-          <Button type="submit" variant="primary" size="md" className="w-full mt-2" isLoading={loading}>
+          <Button type="submit" variant="primary" size="md" className="w-full mt-2 font-bold" isLoading={loading}>
             Sign Up & Get Started
           </Button>
         </form>

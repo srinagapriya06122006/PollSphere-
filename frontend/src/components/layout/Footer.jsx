@@ -1,94 +1,166 @@
 import React from 'react'
 import { Link } from 'react-router-dom'
-import { BarChart3 } from 'lucide-react'
+import { BarChart3, Github, Mail, ShieldCheck, Heart } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 
 export const Footer = () => {
   const { isAuthenticated } = useAuth()
 
   return (
-    <footer className="mt-auto border-t border-slate-200 dark:border-slate-800/80 bg-white/95 dark:bg-slate-950/90 text-slate-500 dark:text-slate-400 text-xs transition-colors duration-200">
-      <div className="max-w-[1500px] w-full mx-auto px-4 sm:px-8 lg:px-12 py-8">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-6">
-          {/* Brand & Tagline */}
-          <div className="space-y-2.5 md:col-span-1">
-            <Link to="/" className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-indigo-600 to-purple-500 flex items-center justify-center text-white shadow-sm">
-                <BarChart3 className="w-4 h-4" />
+    <footer className="mt-auto border-t border-slate-200 dark:border-slate-800/80 bg-white dark:bg-slate-950 text-slate-500 dark:text-slate-400 text-xs transition-colors duration-200">
+      <div className="max-w-[1500px] w-full mx-auto px-4 sm:px-8 lg:px-12 py-12">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-8 mb-10">
+          {/* Brand & Mission (Col 1-2 on mobile, Col 1 on desktop) */}
+          <div className="col-span-2 space-y-4">
+            <Link to="/" className="flex items-center gap-2.5">
+              <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-indigo-600 to-purple-500 flex items-center justify-center text-white shadow-md shadow-indigo-600/20">
+                <BarChart3 className="w-5 h-5" />
               </div>
-              <span className="text-base font-black text-slate-900 dark:text-slate-100">PulsePoll</span>
+              <span className="text-lg font-black text-slate-900 dark:text-slate-100 tracking-tight">
+                PulsePoll
+              </span>
             </Link>
-            <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed font-medium">
-              Real-time audience feedback made simple.
+            <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed font-medium max-w-sm">
+              The high-performance, real-time polling platform designed for communities, classrooms, and modern engineering teams.
             </p>
+
+            {/* Live System Status Pill */}
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 font-bold text-[11px]">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+              </span>
+              <span>All Systems Operational • 99.9% Uptime</span>
+            </div>
           </div>
 
           {/* Product Links */}
-          <div className="space-y-2">
+          <div className="space-y-3">
             <h4 className="text-xs font-bold uppercase tracking-wider text-slate-900 dark:text-slate-200">
               Product
             </h4>
-            <ul className="space-y-1.5">
+            <ul className="space-y-2 font-medium">
               <li>
-                <Link to="/explore" className="hover:text-indigo-600 dark:hover:text-indigo-400 transition font-medium">
+                <Link to="/explore" className="hover:text-indigo-600 dark:hover:text-indigo-400 transition">
                   Explore Polls
                 </Link>
               </li>
               <li>
                 <Link
                   to={isAuthenticated ? '/analytics' : '/login?redirect=/analytics'}
-                  className="hover:text-indigo-600 dark:hover:text-indigo-400 transition font-medium"
+                  className="hover:text-indigo-600 dark:hover:text-indigo-400 transition"
                 >
-                  Analytics
+                  Live Analytics
                 </Link>
               </li>
               <li>
                 <Link
                   to={isAuthenticated ? '/create-poll' : '/login?redirect=/create-poll'}
-                  className="hover:text-indigo-600 dark:hover:text-indigo-400 transition font-medium"
+                  className="hover:text-indigo-600 dark:hover:text-indigo-400 transition"
                 >
-                  Create Poll
+                  Create a Poll
                 </Link>
+              </li>
+              <li>
+                <a href="#features" className="hover:text-indigo-600 dark:hover:text-indigo-400 transition">
+                  Core Features
+                </a>
+              </li>
+              <li>
+                <a href="#how-it-works" className="hover:text-indigo-600 dark:hover:text-indigo-400 transition">
+                  How It Works
+                </a>
               </li>
             </ul>
           </div>
 
-          {/* Account Links */}
-          <div className="space-y-2">
+          {/* Resources Links */}
+          <div className="space-y-3">
             <h4 className="text-xs font-bold uppercase tracking-wider text-slate-900 dark:text-slate-200">
-              Account
+              Resources
             </h4>
-            <ul className="space-y-1.5">
+            <ul className="space-y-2 font-medium">
               <li>
-                <Link to="/login" className="hover:text-indigo-600 dark:hover:text-indigo-400 transition font-medium">
-                  Sign In
-                </Link>
+                <a href="#how-it-works" className="hover:text-indigo-600 dark:hover:text-indigo-400 transition">
+                  Documentation
+                </a>
               </li>
               <li>
-                <Link to="/register" className="hover:text-indigo-600 dark:hover:text-indigo-400 transition font-medium">
-                  Sign Up
-                </Link>
+                <span className="cursor-pointer hover:text-indigo-600 dark:hover:text-indigo-400 transition">
+                  WebSocket & REST API
+                </span>
+              </li>
+              <li>
+                <span className="cursor-pointer hover:text-indigo-600 dark:hover:text-indigo-400 transition">
+                  Community FAQ
+                </span>
+              </li>
+              <li>
+                <span className="cursor-pointer hover:text-indigo-600 dark:hover:text-indigo-400 transition">
+                  Architecture Overview
+                </span>
+              </li>
+              <li>
+                <span className="cursor-pointer hover:text-indigo-600 dark:hover:text-indigo-400 transition">
+                  Release Notes (v2.4)
+                </span>
               </li>
             </ul>
           </div>
 
-          {/* Technology Highlights */}
-          <div className="space-y-2">
+          {/* Company Links */}
+          <div className="space-y-3">
             <h4 className="text-xs font-bold uppercase tracking-wider text-slate-900 dark:text-slate-200">
-              Technology
+              Company
             </h4>
-            <ul className="space-y-1.5 text-slate-500 dark:text-slate-400 font-medium">
-              <li>Go</li>
-              <li>MongoDB</li>
-              <li>Redis</li>
-              <li>WebSocket</li>
+            <ul className="space-y-2 font-medium">
+              <li>
+                <Link to="/about" className="hover:text-indigo-600 dark:hover:text-indigo-400 transition">
+                  About PulsePoll
+                </Link>
+              </li>
+              <li>
+                <a
+                  href="https://github.com/srinagapriya06122006/PollSphere-"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="hover:text-indigo-600 dark:hover:text-indigo-400 transition flex items-center gap-1.5"
+                >
+                  <Github className="w-3.5 h-3.5" />
+                  GitHub Repo
+                </a>
+              </li>
+              <li>
+                <a
+                  href="mailto:contact@pulsepoll.io"
+                  className="hover:text-indigo-600 dark:hover:text-indigo-400 transition flex items-center gap-1.5"
+                >
+                  <Mail className="w-3.5 h-3.5" />
+                  Contact & Support
+                </a>
+              </li>
+              <li>
+                <span className="cursor-pointer hover:text-indigo-600 dark:hover:text-indigo-400 transition">
+                  Privacy Policy
+                </span>
+              </li>
+              <li>
+                <span className="cursor-pointer hover:text-indigo-600 dark:hover:text-indigo-400 transition">
+                  Terms of Service
+                </span>
+              </li>
             </ul>
           </div>
         </div>
 
         {/* Bottom Bar */}
-        <div className="pt-4 border-t border-slate-100 dark:border-slate-800/80 text-xs text-slate-500 dark:text-slate-400">
-          <p>&copy; 2026 PulsePoll</p>
+        <div className="pt-6 border-t border-slate-100 dark:border-slate-800/80 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500 dark:text-slate-400 font-medium">
+          <p>&copy; {new Date().getFullYear()} PulsePoll Inc. All rights reserved.</p>
+          <div className="flex items-center gap-4">
+            <span className="flex items-center gap-1">
+              Engineered with <Heart className="w-3.5 h-3.5 text-rose-500 fill-rose-500" /> for real-time consensus
+            </span>
+          </div>
         </div>
       </div>
     </footer>

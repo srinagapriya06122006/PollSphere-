@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext'
 import Card from '../components/common/Card'
 import Input from '../components/common/Input'
 import Button from '../components/common/Button'
+import { validateEmail } from '../utils/validators'
 
 export const Login = () => {
   const navigate = useNavigate()
@@ -12,30 +13,69 @@ export const Login = () => {
   const { login } = useAuth()
 
   const [formData, setFormData] = useState({ email: '', password: '' })
+  const [emailTouched, setEmailTouched] = useState(false)
+  const [emailError, setEmailError] = useState('')
+  const [passwordError, setPasswordError] = useState('')
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState(null)
+  const [serverError, setServerError] = useState(null)
 
   // Retrieve destination path if user was redirected here from a protected page
   const searchParams = new URLSearchParams(location.search)
   const redirectQuery = searchParams.get('redirect')
   const fromPath = redirectQuery || location.state?.from?.pathname || '/'
 
+  const handleEmailChange = (e) => {
+    const value = e.target.value
+    setFormData((prev) => ({ ...prev, email: value }))
+
+    if (emailTouched || emailError) {
+      const { isValid, error } = validateEmail(value)
+      setEmailError(isValid ? '' : error)
+    }
+  }
+
+  const handleEmailBlur = () => {
+    setEmailTouched(true)
+    const { isValid, error } = validateEmail(formData.email)
+    setEmailError(isValid ? '' : error)
+  }
+
   const handleSubmit = async (e) => {
     e.preventDefault()
+    setServerError(null)
+
+    // Validate email
+    setEmailTouched(true)
+    const emailValidation = validateEmail(formData.email)
+    if (!emailValidation.isValid) {
+      setEmailError(emailValidation.error)
+      return
+    }
+    setEmailError('')
+
+    // Validate password
+    if (!formData.password) {
+      setPasswordError('Password is required')
+      return
+    }
+    setPasswordError('')
+
     setLoading(true)
-    setError(null)
+
+    const normalizedEmail = formData.email.trim().toLowerCase()
 
     try {
-      await login(formData.email, formData.password)
+      await login(normalizedEmail, formData.password)
       navigate(fromPath, { replace: true })
     } catch (err) {
-      setError(err.customMessage || 'Invalid email or password')
+      setServerError(err.customMessage || err.response?.data?.message || 'Invalid email or password')
     } finally {
       setLoading(false)
     }
   }
 
   const isRedirected = Boolean(redirectQuery || location.state?.from)
+  const isEmailValid = emailTouched && !emailError && formData.email.trim().length > 0
 
   return (
     <div className="max-w-md mx-auto py-12">
@@ -54,14 +94,14 @@ export const Login = () => {
           </div>
         )}
 
-        {error && (
+        {serverError && (
           <div className="mb-6 p-4 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-300 text-xs flex items-center gap-2.5">
             <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
-            <span>{error}</span>
+            <span>{serverError}</span>
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4" noValidate>
           <Input
             label="Email Address"
             type="email"
@@ -69,7 +109,11 @@ export const Login = () => {
             required
             placeholder="you@example.com"
             value={formData.email}
-            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+            error={emailError}
+            isValid={isEmailValid}
+            onChange={handleEmailChange}
+            onBlur={handleEmailBlur}
+            helperText={!emailError && isEmailValid ? 'Valid email format' : undefined}
           />
 
           <Input
@@ -77,12 +121,16 @@ export const Login = () => {
             type="password"
             id="password"
             required
+            error={passwordError}
             placeholder="••••••••"
             value={formData.password}
-            onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+            onChange={(e) => {
+              setFormData({ ...formData, password: e.target.value })
+              if (passwordError) setPasswordError('')
+            }}
           />
 
-          <Button type="submit" variant="primary" size="md" className="w-full mt-2" isLoading={loading}>
+          <Button type="submit" variant="primary" size="md" className="w-full mt-2 font-bold" isLoading={loading}>
             Sign In
           </Button>
         </form>

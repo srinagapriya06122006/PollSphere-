@@ -1,10 +1,15 @@
 import React, { useEffect } from 'react'
 import { useLocation } from 'react-router-dom'
 import HeroSection from '../components/home/HeroSection'
+import SocialProofSection from '../components/home/SocialProofSection'
+import KeyFeaturesRow from '../components/home/KeyFeaturesRow'
+import TrendingPollsSection from '../components/home/TrendingPollsSection'
+import CategoryCardsSection from '../components/home/CategoryCardsSection'
 import WhatYouCanDoSection from '../components/home/WhatYouCanDoSection'
 import HowItWorks from '../components/home/HowItWorks'
 import RealtimeSection from '../components/home/RealtimeSection'
 import AnalyticsPreview from '../components/home/AnalyticsPreview'
+import TestimonialsSection from '../components/home/TestimonialsSection'
 
 export const HomePage = () => {
   const location = useLocation()
@@ -22,20 +27,35 @@ export const HomePage = () => {
 
   return (
     <div className="w-full animate-fadeIn">
-      {/* 2. Hero — Wide 2-column layout with static preview */}
+      {/* 1. Hero Section — Headline, CTAs & Live Interactive Poll Preview */}
       <HeroSection />
 
-      {/* 3. Core Capabilities / Features (id="features") */}
+      {/* 2. Social Proof Section — 10k+ Votes, 500+ Polls, 1.2k+ Users, 99.9% Uptime */}
+      <SocialProofSection />
+
+      {/* 3. Showcase Key Features in One Row */}
+      <KeyFeaturesRow />
+
+      {/* 4. Trending Community Polls — 3 to 6 real public polls before login */}
+      <TrendingPollsSection />
+
+      {/* 5. Poll Categories Cards — Technology, Education, Sports, Entertainment, General */}
+      <CategoryCardsSection />
+
+      {/* 6. Core Capabilities / Features (id="features") */}
       <WhatYouCanDoSection />
 
-      {/* 4. How PulsePoll Works (id="how-it-works") */}
+      {/* 7. How PulsePoll Works (id="how-it-works") */}
       <HowItWorks />
 
-      {/* 5. Real-Time Architecture — Static 7-step flow diagram */}
+      {/* 8. Real-Time Architecture & Flow Diagram */}
       <RealtimeSection />
 
-      {/* 6. Analytics Preview — Compact 2-column showcase */}
+      {/* 9. Analytics Preview Showcase */}
       <AnalyticsPreview />
+
+      {/* 10. Testimonials — What Users Say */}
+      <TestimonialsSection />
     </div>
   )
 }
