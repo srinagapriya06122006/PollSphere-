@@ -1,29 +1,53 @@
-import React from 'react'
+import React, { useEffect, useState } from 'react'
 import { Vote, Layers, Users, Zap, Award } from 'lucide-react'
+import apiClient from '../../api/client'
 
 export const SocialProofSection = () => {
+  const [liveData, setLiveData] = useState(null)
+  const [isLive, setIsLive] = useState(false)
+
+  useEffect(() => {
+    let isMounted = true
+    const fetchStats = async () => {
+      try {
+        const res = await apiClient.get('/analytics/overview')
+        if (isMounted && res.data) {
+          setLiveData(res.data)
+          setIsLive(true)
+        }
+      } catch (e) {
+        // Fallback gracefully to preview
+        setIsLive(false)
+      }
+    }
+    fetchStats()
+    return () => {
+      isMounted = false
+    }
+  }, [])
+
   const stats = [
     {
       icon: Vote,
-      value: '10,000+',
+      value: isLive && liveData?.totalVotes !== undefined ? `${liveData.totalVotes}` : '10,000+',
       label: 'Votes Cast',
-      change: '+24% this week',
+      change: isLive ? 'Verified database votes' : 'Platform Preview',
       color: 'text-indigo-600 dark:text-indigo-400',
       bg: 'bg-indigo-50 dark:bg-indigo-950/50 border-indigo-200/60 dark:border-indigo-800/60',
     },
     {
       icon: Layers,
-      value: '500+',
+      value: isLive && liveData?.totalPolls !== undefined ? `${liveData.totalPolls}` : '500+',
       label: 'Polls Created',
-      change: 'Active topics',
+      change: isLive ? `${liveData?.activePolls ?? 0} active now` : 'Platform Preview',
       color: 'text-purple-600 dark:text-purple-400',
       bg: 'bg-purple-50 dark:bg-purple-950/50 border-purple-200/60 dark:border-purple-800/60',
     },
     {
       icon: Users,
-      value: '1,200+',
+      value: isLive && liveData?.totalUsers !== undefined ? `${liveData.totalUsers}` : '1,200+',
       label: 'Community Users',
-      change: 'Global contributors',
+      change: isLive ? 'Registered members' : 'Platform Preview',
       color: 'text-emerald-600 dark:text-emerald-400',
       bg: 'bg-emerald-50 dark:bg-emerald-950/50 border-emerald-200/60 dark:border-emerald-800/60',
     },
@@ -38,15 +62,17 @@ export const SocialProofSection = () => {
   ]
 
   return (
-    <section className="w-full py-8 sm:py-10 border-y border-slate-200/80 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-900/30">
+    <section className="w-full py-8 sm:py-10 border-t border-slate-200/80 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-900/40">
       <div className="max-w-[1500px] w-full mx-auto px-4 sm:px-8 lg:px-12">
         <div className="text-center mb-6">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-100 dark:bg-slate-800/80 border border-slate-200/80 dark:border-slate-700/80 text-[11px] font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wider mb-2">
             <Award className="w-3.5 h-3.5 text-indigo-500" />
-            <span>Trusted By Communities Worldwide</span>
+            <span>{isLive ? 'Trusted By Communities Worldwide' : 'Platform Preview • Trusted By Communities'}</span>
           </div>
           <p className="text-xs sm:text-sm font-medium text-slate-500 dark:text-slate-400">
-            Powering live consensus, classroom discussions, and tech meetups across the globe.
+            {isLive
+              ? 'Real-time database metrics & live WebSocket telemetry across PollSphere.'
+              : 'Powering live consensus, classroom discussions, and tech meetups across the globe.'}
           </p>
         </div>
 
