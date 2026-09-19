@@ -62,7 +62,7 @@ export const SocialProofSection = () => {
   ]
 
   return (
-    <section className="w-full py-8 sm:py-10 border-t border-slate-200/80 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-900/40">
+    <section className="w-full py-8 sm:py-10 border-t border-slate-200/80 dark:border-slate-800/80 bg-white dark:bg-slate-900/40 transition-colors duration-200">
       <div className="max-w-[1500px] w-full mx-auto px-4 sm:px-8 lg:px-12">
         <div className="text-center mb-6">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-100 dark:bg-slate-800/80 border border-slate-200/80 dark:border-slate-700/80 text-[11px] font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wider mb-2">

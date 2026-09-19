@@ -8,7 +8,7 @@ export const FinalCTASection = () => {
   const { isAuthenticated } = useAuth()
 
   return (
-    <section className="w-full py-16 sm:py-20 bg-gradient-to-b from-slate-900/40 via-indigo-950/20 to-slate-950 border-t border-slate-200/60 dark:border-slate-800/80">
+    <section className="w-full py-16 sm:py-20 bg-white dark:bg-gradient-to-b dark:from-slate-900/40 dark:via-indigo-950/20 dark:to-slate-950 border-t border-slate-200/60 dark:border-slate-800/80 transition-colors duration-200">
       <div className="max-w-3xl mx-auto px-4 sm:px-6 text-center space-y-6">
         <h2 className="text-3xl sm:text-4xl font-black text-slate-900 dark:text-slate-100 tracking-tight">
           Ready to see what your community thinks?

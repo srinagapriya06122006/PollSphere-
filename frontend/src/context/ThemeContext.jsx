@@ -25,7 +25,7 @@ const applyThemeToDOM = (themeMode) => {
     if (body) {
       body.classList.remove('dark')
       body.classList.add('light')
-      body.style.backgroundColor = '#f8fafc'
+      body.style.backgroundColor = '#ffffff'
       body.style.color = '#0f172a'
     }
   }

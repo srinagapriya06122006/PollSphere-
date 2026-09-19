@@ -27,7 +27,7 @@ export const HowItWorks = () => {
   ]
 
   return (
-    <section id="how-it-works" className="w-full py-12 sm:py-16 bg-slate-50/50 dark:bg-slate-900/30 border-y border-slate-200/60 dark:border-slate-800/60">
+    <section id="how-it-works" className="w-full py-12 sm:py-16 bg-white dark:bg-slate-900/30 border-y border-slate-200/60 dark:border-slate-800/60 transition-colors duration-200">
       <div className="max-w-[1500px] w-full mx-auto px-4 sm:px-8 lg:px-12">
         {/* Header */}
         <div className="text-center max-w-2xl mx-auto mb-12 space-y-2">
